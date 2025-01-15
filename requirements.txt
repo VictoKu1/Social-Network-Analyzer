@@ -1,0 +1,8 @@
+Flask
+openai
+requests
+beautifulsoup4
+snscrape
+python-dotenv
+pytest
+
