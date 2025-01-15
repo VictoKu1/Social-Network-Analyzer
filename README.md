@@ -39,8 +39,8 @@ This repository contains a **Flask-based web application** that lets users:
 1. **Clone the Repository**:
 
    ```
-   git clone https://github.com/VictoKu1/SocialPersonaInsights.git
-   cd SocialPersonaInsights
+   git clone https://github.com/VictoKu1/Social-Network-Analyzer.git
+   cd Social-Network-Analyzer
     ```
 
 2. **Install Dependencies**:
