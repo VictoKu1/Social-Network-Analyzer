@@ -1,9 +1,39 @@
 import os
 import re
-import openai
+from openai import OpenAI
 
-# Set the OpenAI API key from environment variable
-openai.api_key = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
+# OpenAI API key
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY"))
+
+# List of social media domains and their names
+domains = {
+    "facebook.com": "Facebook",
+    "instagram.com": "Instagram",
+    "twitter.com": "Twitter",
+    "x.com": "X",
+    "threads.net": "Threads",
+    "linkedin.com": "LinkedIn",
+    "pinterest.com": "Pinterest",
+    "snapchat.com": "Snapchat",
+    "tiktok.com": "TikTok",
+    "youtube.com": "YouTube",
+    "reddit.com": "Reddit",
+    "tumblr.com": "Tumblr",
+    "github.com": "GitHub",
+    "stackoverflow.com": "Stack Overflow",
+    "medium.com": "Medium",
+    "wordpress.com": "WordPress",
+    "blogger.com": "Blogger",
+    "twitch.tv": "Twitch",
+    "soundcloud.com": "SoundCloud",
+    "spotify.com": "Spotify",
+    "apple.com": "Apple",
+    "amazon.com": "Amazon",
+    "ebay.com": "eBay",
+    "etsy.com": "Etsy",
+    "patreon.com": "Patreon",
+}
+
 
 def validate_social_link(link: str):
     """
@@ -13,22 +43,17 @@ def validate_social_link(link: str):
     if not (link.startswith("http://") or link.startswith("https://")):
         return (False, None)
 
-    domains = {
-        "twitter.com": "Twitter",
-        "facebook.com": "Facebook",
-        "instagram.com": "Instagram",
-        "threads.net": "Threads"
-    }
     for domain, name in domains.items():
         if domain in link:
             return (True, name)
     return (False, None)
 
+
 def analyze_personality(links_info, personal_description):
     """
-    Combine link data + personal description into a prompt, 
+    Combine link data + personal description into a prompt,
     then call OpenAI for a personality-like analysis.
-    
+
     links_info: list of dict, each with {"url": <str>, "platform": <str>}
     personal_description: str
     """
@@ -53,19 +78,39 @@ def analyze_personality(links_info, personal_description):
     Please give:
     1. Overall tone or impression.
     2. Possible personality traits (Big Five or a similar framework).
-    3. Disclaimers that this is NOT professional mental health advice.
+    3. Possible likes, dislikes, or interests.
+    4. Warning signs or red flags.
+    5. Any other relevant insights.
     """
-
+    disclamer = "\n\n **Disclamer**: This analysis is based on limited publicly available information and is a broad characterization rather than a definitive assessment of personality. It is important to note that this summary should not be considered professional mental health advice or a diagnostic tool. Personality is complex and multifaceted, often requiring in-depth and personal assessment for accuracy."
     try:
-        # Example with text-davinci-003 (Completion API).
-        # If you prefer ChatCompletion, you'd use openai.ChatCompletion.create() instead.
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=300,
-            temperature=0.7
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful AI ..."},
+                {"role": "user", "content": prompt},
+            ],
+            # max_tokens=300,
+            # temperature=0.7,
         )
-        return response.choices[0].text.strip()
+        result = response.choices[0].message.content + disclamer
+        print(result)
+        return result
     except Exception as e:
         print(f"OpenAI API error: {e}")
         return "Error analyzing with OpenAI. Check logs or API key."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

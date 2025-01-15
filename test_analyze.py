@@ -22,11 +22,11 @@ class TestAnalyze(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertIsNone(platform)
 
-    @patch('openai.Completion.create')
+    @patch('openai.resources.Completions.create')
     def test_analyze_personality(self, mock_openai_create):
         # Mock the OpenAI API call to avoid real calls during tests
         mock_openai_create.return_value = MagicMock(choices=[MagicMock(text="Mocked analysis text")])
-        
+
         links_info = [
             {"url": "https://twitter.com/elonmusk", "platform": "Twitter"},
             {"url": "https://instagram.com/janedoe", "platform": "Instagram"}
