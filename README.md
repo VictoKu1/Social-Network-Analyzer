@@ -45,8 +45,8 @@ This repository contains a **Flask-based web application** that lets users:
 
 2. **Install Dependencies**:
 
-- Python 3.8+ recommended.
-- Install packages:
+   - **Python 3.8+** recommended.
+   - Install packages:
 
     ```
     pip install -r requirements.txt
@@ -54,18 +54,18 @@ This repository contains a **Flask-based web application** that lets users:
 
 3. **Set Your OpenAI API Key**:
 
-You can either set it as an environment variable:
+    You can either set it as an environment variable:
 
-    ```
-    export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
-    ```
-(On Windows, use set OPENAI_API_KEY=sk-xxxx.)
+        ```
+        export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
+        ```
+    (On Windows, use set OPENAI_API_KEY=sk-xxxx.)
 
-Or create a .env file (not tracked in version control) and store your API key there:
+    Or create a .env file (not tracked in version control) and store your API key there:
 
-    ```
-    OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
-    ```
+        ```
+        OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
+        ```
 
 4. **Run the Flask App**:
 
@@ -172,7 +172,7 @@ git commit -m "Add new feature"
 git push origin feature/new-stuff
 ```
 
-4. Open a Pull Request on GitHub.
+4. **Open** a Pull Request on GitHub.
 
 ---
 
@@ -202,7 +202,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Please see the LICENSE file for more information.
+Please see the ```LICENSE``` file for more information.
 
 ---
 
@@ -215,7 +215,6 @@ Please see the LICENSE file for more information.
 - Always respect user privacy and data protection laws.
 - If you have any concerns, please contact the author.
 - The author is not responsible for any misuse or damage caused by this software.
-
 
 
 
