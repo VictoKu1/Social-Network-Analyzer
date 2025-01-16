@@ -106,6 +106,8 @@ def analyze_personality(links_info, personal_description):
         result = response.choices[0].message.content + disclamer
         return result
     #Should use specific exceptions not just Exception
-    except OpenAI.Error as e:
-        print(f"OpenAI API error: {e}")
+    except OpenAI.error.AuthenticationError as e:
+        print(f"OpenAI authentication error: {e}")
+    except Exception as e:
+        print(f"Error analyzing with OpenAI: {e}")
         return "Error analyzing with OpenAI. Check logs or API key."
