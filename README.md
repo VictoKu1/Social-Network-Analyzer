@@ -32,6 +32,10 @@ This repository contains a **Flask-based web application** that lets users:
   - A sample prompt demonstrates how to create a short “personality analysis.”  
   - Requires an **OpenAI API key** (set in `.env` or as an environment variable).
 
+- **Data Gathering from User Personal Pages**  
+  - Gathers specific data from user personal pages for each social network using `snscrape` and `beautifulsoup4`.
+  - Supports multiple social networks including Twitter, Instagram, Facebook, Threads, LinkedIn, Pinterest, Snapchat, TikTok, YouTube, Reddit, Tumblr, GitHub, Stack Overflow, Medium, WordPress, Blogger, Twitch, SoundCloud, Spotify, Apple, Amazon, eBay, Etsy, and Patreon.
+
 ---
 
 ## Quickstart
@@ -113,6 +117,7 @@ Visit http://127.0.0.1:5000/ to access the web app.
   - Contains the core **OpenAI analysis** logic:
     - ```validate_social_link(link)``` checks if a URL is recognized (Twitter, Instagram, etc.).
     - ```analyze_personality(links_info, personal_description)``` constructs a prompt and calls the OpenAI API.
+    - ```gather_data_from_user_pages(links_info)``` gathers specific data from user personal pages for each social network.
 
 - ```test_analyze.py```:
   - Contains **unit tests** for functions in ```analyze.py```.

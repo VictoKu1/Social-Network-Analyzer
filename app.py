@@ -3,7 +3,7 @@ Flask web application for validating social media links and analyzing personalit
 """
 
 from flask import Flask, request, jsonify, render_template
-from analyze import validate_social_link, analyze_personality
+from analyze import validate_social_link, analyze_personality, gather_data_from_user_pages
 
 app = Flask(__name__)
 
@@ -51,7 +51,10 @@ def analyze():
     links_info = data.get("links_info", [])
     personal_description = data.get("personal_description", "")
 
-    result = analyze_personality(links_info, personal_description)
+    # Gather data from user pages
+    gathered_data = gather_data_from_user_pages(links_info)
+
+    result = analyze_personality(links_info, personal_description, gathered_data)
     return jsonify({"analysis": result})
 
 

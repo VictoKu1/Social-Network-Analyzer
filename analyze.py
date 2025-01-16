@@ -4,6 +4,12 @@ Module for analyzing social media links using OpenAI API.
 
 import os
 from openai import OpenAI, OpenAIError
+import snscrape.modules.twitter as sntwitter
+import snscrape.modules.instagram as sninstagram
+import snscrape.modules.facebook as snfacebook
+import snscrape.modules.threads as snthreads
+from bs4 import BeautifulSoup
+import requests
 
 # OpenAI API key
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY"))
@@ -52,6 +58,62 @@ def validate_social_link(link: str):
     return (False, None)
 
 
+def gather_twitter_data(username):
+    tweets = []
+    for tweet in sntwitter.TwitterUserScraper(username).get_items():
+        tweets.append(tweet.content)
+        if len(tweets) == 10:  # Limit to 10 tweets
+            break
+    return tweets
+
+
+def gather_instagram_data(username):
+    posts = []
+    for post in sninstagram.InstagramUserScraper(username).get_items():
+        posts.append(post.content)
+        if len(posts) == 10:  # Limit to 10 posts
+            break
+    return posts
+
+
+def gather_facebook_data(username):
+    posts = []
+    for post in snfacebook.FacebookUserScraper(username).get_items():
+        posts.append(post.content)
+        if len(posts) == 10:  # Limit to 10 posts
+            break
+    return posts
+
+
+def gather_threads_data(username):
+    posts = []
+    for post in snthreads.ThreadsUserScraper(username).get_items():
+        posts.append(post.content)
+        if len(posts) == 10:  # Limit to 10 posts
+            break
+    return posts
+
+
+def gather_data_from_user_pages(links_info):
+    gathered_data = {}
+    for link_data in links_info:
+        platform = link_data["platform"]
+        url = link_data["url"]
+        username = url.split("/")[-1]
+
+        if platform == "Twitter":
+            gathered_data[platform] = gather_twitter_data(username)
+        elif platform == "Instagram":
+            gathered_data[platform] = gather_instagram_data(username)
+        elif platform == "Facebook":
+            gathered_data[platform] = gather_facebook_data(username)
+        elif platform == "Threads":
+            gathered_data[platform] = gather_threads_data(username)
+        # Add more platforms as needed
+
+    return gathered_data
+
+
 def analyze_personality(links_info, personal_description):
     """
     Combine link data + personal description into a prompt,
@@ -63,13 +125,22 @@ def analyze_personality(links_info, personal_description):
     if not links_info and not personal_description:
         return "No data provided for analysis."
 
+    # Gather data from user pages
+    gathered_data = gather_data_from_user_pages(links_info)
+
     # Construct a simple text prompt (placeholder)
-    # In a real app, you might fetch user posts from each link here.
     combined_text = "User Provided Links:\n"
     for link_data in links_info:
         combined_text += f" - {link_data['url']} ({link_data['platform']})\n"
 
     combined_text += f"\nPersonal Description:\n{personal_description}\n"
+
+    # Include gathered data in the prompt
+    combined_text += "\nGathered Data:\n"
+    for platform, data in gathered_data.items():
+        combined_text += f"\n{platform}:\n"
+        for item in data:
+            combined_text += f" - {item}\n"
 
     prompt = f"""
     You are an AI that analyzes a person's social network platforms and personal description 
