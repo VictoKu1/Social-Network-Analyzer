@@ -3,7 +3,7 @@ Module for analyzing social media links using OpenAI API.
 """
 
 import os
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 # OpenAI API key
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY"))
@@ -106,8 +106,6 @@ def analyze_personality(links_info, personal_description):
         result = response.choices[0].message.content + disclamer
         return result
     #Should use specific exceptions not just Exception
-    except OpenAI.error.AuthenticationError as e:
-        print(f"OpenAI authentication error: {e}")
-    except Exception as e:
-        print(f"Error analyzing with OpenAI: {e}")
-        return "Error analyzing with OpenAI. Check logs or API key."
+    except OpenAIError as e:
+        print (f"OpenAI API Error: {e}")
+        return f"OpenAI API Error: {e}"
