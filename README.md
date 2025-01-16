@@ -1,5 +1,7 @@
 # Social Network Analyzer
 
+[![Pylint](https://github.com/VictoKu1/Social-Network-Analyzer/actions/workflows/pylint.yml/badge.svg)](https://github.com/VictoKu1/Social-Network-Analyzer/actions/workflows/pylint.yml)
+
 This repository contains a **Flask-based web application** that lets users:
 
 1. **Specify how many social network links** they want to analyze.
@@ -215,8 +217,6 @@ Please see the ```LICENSE``` file for more information.
 - Always respect user privacy and data protection laws.
 - If you have any concerns, please contact the author.
 - The author is not responsible for any misuse or damage caused by this software.
-
-
 
 
 
