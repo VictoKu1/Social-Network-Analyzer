@@ -184,7 +184,8 @@ def analyze_personality(links_info, personal_description):
         result = response.choices[0].message.content + disclamer
 
         # # Extract numerical evaluations and format as a table
-        # evaluations = response.choices[0].message.content.split("After generating the above text, please provide a (0-100) evaluation for each of the following parameters without any explanation:")[1]
+        # evaluations = response.choices[0].message.content.split("After generating the above text,
+        # please provide a (0-100) evaluation for each of the following parameters without any explanation:")[1]
         # evaluations = evaluations.strip().split("\n")
         # table = "\n\n| Parameter | Value |\n|-----------|-------|\n"
         # for evaluation in evaluations:
