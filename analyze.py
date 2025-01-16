@@ -159,7 +159,9 @@ def analyze_personality(links_info, personal_description):
     4. Warning signs or red flags.
     5. Any other relevant insights.
 
-    After generating the above text, please provide a (0-100) evaluation for each of the following parameters without any explanation and return it as a table:
+    After generating the above text, please provide a (0-100)
+    evaluation for each of the following parameters
+    without any explanation and return it as a table:
     {', '.join(parameters)}
     """
 
@@ -185,7 +187,9 @@ def analyze_personality(links_info, personal_description):
 
         # # Extract numerical evaluations and format as a table
         # evaluations = response.choices[0].message.content.split("After generating the above text,
-        # please provide a (0-100) evaluation for each of the following parameters without any explanation:")[1]
+        # please provide a (0-100) evaluation
+        # for each of the following
+        # parameters without any explanation:")[1]
         # evaluations = evaluations.strip().split("\n")
         # table = "\n\n| Parameter | Value |\n|-----------|-------|\n"
         # for evaluation in evaluations:
