@@ -58,7 +58,3 @@ def analyze():
 if __name__ == "__main__":
     # Run in debug mode for development
     app.run(debug=True)
-
-
-
-
