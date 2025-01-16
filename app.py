@@ -1,10 +1,12 @@
 """
 Flask web application for validating social media links and analyzing personality.
 """
+
 from flask import Flask, request, jsonify, render_template
 from analyze import validate_social_link, analyze_personality
 
 app = Flask(__name__)
+
 
 @app.route("/")
 def index():
@@ -12,6 +14,7 @@ def index():
     Serve the main HTML page.
     """
     return render_template("index.html")
+
 
 @app.route("/validate_links", methods=["POST"])
 def validate_links():
@@ -27,18 +30,14 @@ def validate_links():
 
     for link in links:
         is_valid, platform = validate_social_link(link)
-        validation_results.append({
-            "url": link,
-            "is_valid": is_valid,
-            "platform": platform
-        })
+        validation_results.append(
+            {"url": link, "is_valid": is_valid, "platform": platform}
+        )
         if not is_valid:
             all_valid = False
 
-    return jsonify({
-        "results": validation_results,
-        "all_valid": all_valid
-    })
+    return jsonify({"results": validation_results, "all_valid": all_valid})
+
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -54,6 +53,7 @@ def analyze():
 
     result = analyze_personality(links_info, personal_description)
     return jsonify({"analysis": result})
+
 
 if __name__ == "__main__":
     # Run in debug mode for development
