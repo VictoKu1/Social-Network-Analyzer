@@ -1,22 +1,37 @@
+"""
+Unit tests for the analyze module.
+"""
 import unittest
 from unittest.mock import patch, MagicMock
 from analyze import validate_social_link, analyze_personality
 
 class TestAnalyze(unittest.TestCase):
-
+    """
+    Test cases for the analyze module.
+    """
+    
     def test_validate_social_link_valid(self):
+        """
+        Test validate_social_link with a valid social media link.
+        """
         link = "https://twitter.com/elonmusk"
         is_valid, platform = validate_social_link(link)
         self.assertTrue(is_valid)
         self.assertEqual(platform, "Twitter")
 
     def test_validate_social_link_invalid_prefix(self):
+        """
+        Test validate_social_link with an invalid prefix.
+        """
         link = "ftp://facebook.com/page"
         is_valid, platform = validate_social_link(link)
         self.assertFalse(is_valid)
         self.assertIsNone(platform)
 
     def test_validate_social_link_unknown_domain(self):
+        """
+        Test validate_social_link with an unknown domain.
+        """
         link = "https://example.com/user"
         is_valid, platform = validate_social_link(link)
         self.assertFalse(is_valid)
@@ -24,7 +39,9 @@ class TestAnalyze(unittest.TestCase):
 
     @patch('openai.resources.Completions.create')
     def test_analyze_personality(self, mock_openai_create):
-        # Mock the OpenAI API call to avoid real calls during tests
+        """
+        Test analyze_personality with mocked OpenAI API call.
+        """
         mock_openai_create.return_value = MagicMock(choices=[MagicMock(text="Mocked analysis text")])
 
         links_info = [
@@ -42,8 +59,36 @@ class TestAnalyze(unittest.TestCase):
         mock_openai_create.assert_called_once()
 
     def test_analyze_personality_empty(self):
+        """
+        Test analyze_personality with empty input.
+        """
         result = analyze_personality([], "")
         self.assertEqual(result, "No data provided for analysis.")
 
 if __name__ == '__main__':
     unittest.main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

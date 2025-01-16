@@ -1,4 +1,6 @@
-import os
+"""
+Flask web application for validating social media links and analyzing personality.
+"""
 from flask import Flask, request, jsonify, render_template
 from analyze import validate_social_link, analyze_personality
 
@@ -6,7 +8,9 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    # Serve the main HTML page
+    """
+    Serve the main HTML page.
+    """
     return render_template("index.html")
 
 @app.route("/validate_links", methods=["POST"])
@@ -54,3 +58,7 @@ def analyze():
 if __name__ == "__main__":
     # Run in debug mode for development
     app.run(debug=True)
+
+
+
+
