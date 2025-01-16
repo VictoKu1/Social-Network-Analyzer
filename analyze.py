@@ -37,6 +37,24 @@ domains = {
     "patreon.com": "Patreon",
 }
 
+# List of parameters for numerical evaluation
+parameters = [
+    "Reliability", "Integrity", "Sense of Humor", "Adaptability", "Empathy",
+    "Creativity", "Emotional Intelligence", "Resilience", "Patience", "Charisma",
+    "Communication Skills", "Conflict Resolution", "Teamwork", "Trustworthiness",
+    "Learning Ability", "Critical Thinking", "Problem-Solving Skills", "Attention to Detail",
+    "Memory Retention", "Practical Intelligence", "Intellectual Curiosity", "Emotional Stability",
+    "Optimism", "Sensitivity", "Self-Awareness", "Self-Esteem", "Emotional Dysregulation",
+    "Social Awareness", "Openness to Feedback", "Cultural Awareness", "Friendship Potential",
+    "Boundary Respect", "Leadership Ability", "Innovation", "Strategic Thinking", "Work-Life Balance",
+    "Resourcefulness", "Time Management", "Professional Ethics", "Risk-Taking Behavior", "Impulsivity",
+    "Self-Motivation", "Decision-Making Speed", "Reward Sensitivity", "Fantasy-Prone Thinking",
+    "Paranoia", "Reality Distortion", "Mood Variability", "Resilience to Failure", "Self-Criticism",
+    "Stress Coping Mechanisms", "Social Influence", "Genetic Predisposition", "Parental Involvement",
+    "Parenting Style", "Emotional Support", "Discipline Style", "Attachment Style", "Self-Identification",
+    "Romantic Preferences", "Behavioral Expression", "Fluidity", "Humility", "Independence", "Curiosity",
+    "Forgiveness", "Egoism", "Procrastination", "Dishonesty", "Overreaction"
+]
 
 def validate_social_link(link: str):
     """
@@ -84,7 +102,11 @@ def analyze_personality(links_info, personal_description):
     3. Possible likes, dislikes, or interests.
     4. Warning signs or red flags.
     5. Any other relevant insights.
+
+    After generating the above text, please provide a (0-100) evaluation for each of the following parameters without any explanation and return it as a table:
+    {', '.join(parameters)}
     """
+
     disclamer = """
     \n\n **Disclamer**: This analysis is based on limited publicly available 
     information and is a broad characterization rather than a definitive 
@@ -104,6 +126,16 @@ def analyze_personality(links_info, personal_description):
             # temperature=0.7,
         )
         result = response.choices[0].message.content + disclamer
+
+        # # Extract numerical evaluations and format as a table
+        # evaluations = response.choices[0].message.content.split("After generating the above text, please provide a (0-100) evaluation for each of the following parameters without any explanation:")[1]
+        # evaluations = evaluations.strip().split("\n")
+        # table = "\n\n| Parameter | Value |\n|-----------|-------|\n"
+        # for evaluation in evaluations:
+        #     param, value = evaluation.split(":")
+        #     table += f"| {param.strip()} | {value.strip()} |\n"
+        # result += table
+
         return result
     # Should use specific exceptions not just Exception
     except OpenAIError as e:
