@@ -147,7 +147,7 @@ def fetch_social_media_content(url: str) -> str:
         clean_text = "\n".join(line for line in lines if line)
         # Optionally limit the amount of text to avoid huge prompts
         return clean_text[:2000]  # return first 2000 characters
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         return f"Error fetching content: {str(e)}"
 
 def analyze_personality(links_info, personal_description):
