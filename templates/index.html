@@ -1,94 +1,75 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Social Network Analyzer</title>
 
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+<head>
+  <meta charset="utf-8" />
+  <title>Social Network Analyzer</title>
 
-    <!-- Main CSS -->
-    <!--  If using Flask, the url_for('static', filename='css/style.css') approach is typical:
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Main CSS -->
+  <!--  If using Flask, the url_for('static', filename='css/style.css') approach is typical:
          <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
          But here we’ll just show a static path example.  -->
-    <link rel="stylesheet" href="/static/css/style.css" />
-  </head>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
 
-  <body>
-    <div class="page-wrapper">
-      <div class="container">
-        <h1>Social Network Analyzer</h1>
+<body>
+  <div class="page-wrapper">
+    <div class="container">
+      <h1>Social Network Analyzer</h1>
 
-        <!-- STEP A: Select Number of Links -->
-        <div id="stepA">
-          <label for="numLinks">How many social network links do you want to provide?</label><br /><br />
-          <select id="numLinks" class="styled-select">
-            <option value="1">1</option>
-            <option value="2" selected>2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-          </select>
-          <button class="button" onclick="generateLinkFields()">Next</button>
-        </div>
-
-        <!-- STEP B: Input links, Validate each link -->
-        <div id="stepB">
-          <h3>Enter your social network links</h3>
-          <div id="linksContainer"></div>
-          <button class="button" onclick="validateAllLinks()">Validate Links</button>
-          <div id="validationResults"></div>
-          <button id="continueBtn" class="button" onclick="showStepC()">Continue</button>
-        </div>
-
-        <!-- STEP C: Personal Description + Analyze -->
-        <div id="stepC">
-          <h3>Personal Description</h3>
-          <textarea id="personalDescription" placeholder="Describe the person briefly"></textarea>
-          <br />
-          <button class="button" onclick="analyzeAll()">Analyze</button>
-        </div>
-
-        <!-- Spinner shown during analysis -->
-        <div id="spinner" class="spinner"></div>
-
-        <!-- Final Output -->
-        <div id="analysisResult">
-          <h3>Analysis Result</h3>
-          <!-- This is where the rendered Markdown (or text) will appear -->
-          <div id="analysisText" style="text-align: left; margin-top: 1em;"></div>
-        </div>
+      <!-- STEP A: Select Number of Links -->
+      <div id="stepA">
+        <label for="numLinks">How many social network links do you want to provide?</label><br /><br />
+        <select id="numLinks" class="styled-select">
+          <option value="1">1</option>
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+        <button class="button" onclick="generateLinkFields()">Next</button>
       </div>
+
+      <!-- STEP B: Input links, Validate each link -->
+      <div id="stepB">
+        <h3>Enter your social network links</h3>
+        <div id="linksContainer"></div>
+        <button class="button" onclick="validateAllLinks()">Validate Links</button>
+        <div id="validationResults"></div>
+        <button id="continueBtn" class="button" onclick="showStepC()">Continue</button>
+      </div>
+
+      <!-- STEP C: Personal Description + Analyze -->
+      <div id="stepC">
+        <h3>Personal Description</h3>
+        <textarea id="personalDescription" placeholder="Describe the person briefly"></textarea>
+        <br />
+        <button class="button" onclick="analyzeAll()">Analyze</button>
+      </div>
+
+      <!-- Spinner shown during analysis -->
+      <div id="spinner" class="spinner"></div>
+
+      <!-- Final Output -->
+      <div id="analysisResult">
+        <h3>Analysis Result</h3>
+        <!-- This is where the rendered Markdown (or text) will appear -->
+        <div id="analysisText" style="text-align: left; margin-top: 1em;"></div>
+      </div>
+      <!-- Download as PDF button -->
+
     </div>
+  </div>
 
-    <!-- Marked.js for Markdown rendering (only needed if your output is Markdown) -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Marked.js for Markdown rendering (only needed if your output is Markdown) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <!-- Main JS -->
-    <!-- If using Flask, again you'd typically use `{{ url_for('static', filename='js/app.js') }}` -->
-    <script src="/static/js/app.js"></script>
-  </body>
+  <!-- Main JS -->
+  <!-- If using Flask, again you'd typically use `{{ url_for('static', filename='js/app.js') }}` -->
+  <script src="/static/js/app.js"></script>
+</body>
+
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

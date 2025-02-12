@@ -1,12 +1,15 @@
 """
 Module for analyzing social media links using OpenAI API.
+This version attempts to fetch content from the provided URLs.
 """
 
 import os
+import requests
+from bs4 import BeautifulSoup
 from openai import OpenAI, OpenAIError
 
-# OpenAI API key
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY"))
+# OpenAI API key (make sure this is set in your environment)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # List of social media domains and their names
 domains = {
@@ -98,7 +101,7 @@ parameters = [
     "Discipline Style",
     "Attachment Style",
     "Self-Identification",
-    "Romantic Preferences",
+    "Self-Expression",
     "Behavioral Expression",
     "Fluidity",
     "Humility",
@@ -110,7 +113,6 @@ parameters = [
     "Dishonesty",
     "Overreaction",
 ]
-
 
 def validate_social_link(link: str):
     """
@@ -125,80 +127,118 @@ def validate_social_link(link: str):
             return (True, name)
     return (False, None)
 
+def fetch_social_media_content(url: str) -> str:
+    """
+    Fetches the HTML content from the provided URL and attempts to extract
+    meaningful text. Note: Many modern social sites rely on JavaScript rendering,
+    so this basic method might not work on every site.
+    """
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            return f"Failed to fetch content (status code: {response.status_code})."
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # Remove script and style elements
+        for script_or_style in soup(["script", "style"]):
+            script_or_style.decompose()
+        text = soup.get_text(separator="\n")
+        # Clean up the text
+        lines = (line.strip() for line in text.splitlines())
+        clean_text = "\n".join(line for line in lines if line)
+        # Optionally limit the amount of text to avoid huge prompts
+        return clean_text[:2000]  # return first 2000 characters
+    except Exception as e:
+        return f"Error fetching content: {str(e)}"
 
 def analyze_personality(links_info, personal_description):
     """
-    Combine link data + personal description into a prompt,
-    then call OpenAI for a personality-like analysis.
-
-    links_info: list of dict, each with {"url": <str>, "platform": <str>}
-    personal_description: str
+    Combines data fetched from user-provided links with the personal description,
+    then sends it to the OpenAI API for personality analysis.
     """
     if not links_info and not personal_description:
         return "No data provided for analysis."
 
-    # Construct a simple text prompt (placeholder)
-    # In a real app, you might fetch user posts from each link here.
-    combined_text = "User Provided Links:\n"
+    # Fetch and combine content from each social media link
+    combined_text = "Fetched Social Media Data:\n"
     for link_data in links_info:
-        combined_text += f" - {link_data['url']} ({link_data['platform']})\n"
+        url = link_data.get('url')
+        platform = link_data.get('platform')
+        combined_text += f"\n---\nPlatform: {platform}\nURL: {url}\n"
+        content = fetch_social_media_content(url)
+        combined_text += f"Extracted Content:\n{content}\n"
 
-    combined_text += f"\nPersonal Description:\n{personal_description}\n"
+    combined_text += "\nUser Provided Personal Description:\n" + personal_description + "\n"
 
+    # Build the prompt for OpenAI
     prompt = f"""
-    You are an AI that analyzes a person's social network platforms and personal description 
-    to provide a concise "personality" summary. 
-    Here is the provided data:
+You are an AI that analyzes a person's social media presence and personal description 
+to provide a concise "personality" summary. Here is the provided data:
 
-    {combined_text}
+{combined_text}
 
-    Please give:
-    1. Overall tone or impression.
-    2. Possible personality traits (Big Five or a similar framework).
-    3. Possible likes, dislikes, or interests.
-    4. Warning signs or red flags.
-    5. Any other relevant insights.
+Please provide:
+1. Overall tone or impression.
+2. Possible personality traits (Big Five or a similar framework).
+3. Possible likes, dislikes, or interests.
+4. Warning signs or red flags.
+5. Any other relevant insights.
 
-    After generating the above text, please provide a (0-100)
-    evaluation for each of the following parameters
-    without any explanation and return it as a table:
-    {', '.join(parameters)}
+After generating the above text, please provide a (0-100)
+evaluation for each of the following parameters with 1 line expalination
+and return it as a table:
+{', '.join(parameters)}
     """
 
     disclamer = """
-    \n\n **Disclamer**: This analysis is based on limited publicly available 
-    information and is a broad characterization rather than a definitive 
-    assessment of personality. It is important to note that this 
-    summary should not be considered professional mental health advice 
-    or a diagnostic tool. Personality is complex and multifaceted, 
-    often requiring in-depth and personal assessment for accuracy.
+    
+**Disclaimer**: This analysis is based on limited publicly available information 
+and is a broad characterization rather than a definitive assessment of personality. 
+It should not be considered professional mental health advice.
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o",  # Replace with your actual model if needed.
             messages=[
                 {"role": "system", "content": "You are a helpful AI ..."},
                 {"role": "user", "content": prompt},
             ],
-            # max_tokens=300,
-            # temperature=0.7,
+            # You can adjust max_tokens, temperature, etc. as needed.
         )
         result = response.choices[0].message.content + disclamer
-
-        # # Extract numerical evaluations and format as a table
-        # evaluations = response.choices[0].message.content.split("After generating the above text,
-        # please provide a (0-100) evaluation
-        # for each of the following
-        # parameters without any explanation:")[1]
-        # evaluations = evaluations.strip().split("\n")
-        # table = "\n\n| Parameter | Value |\n|-----------|-------|\n"
-        # for evaluation in evaluations:
-        #     param, value = evaluation.split(":")
-        #     table += f"| {param.strip()} | {value.strip()} |\n"
-        # result += table
-
+        print(prompt)
         return result
-    # Should use specific exceptions not just Exception
     except OpenAIError as e:
         print(f"OpenAI API Error: {e}")
         return f"OpenAI API Error: {e}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

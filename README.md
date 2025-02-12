@@ -57,11 +57,17 @@ This repository contains a **Flask-based web application** that lets users:
 3. **Set Your OpenAI API Key**:
 
     You can either set it as an environment variable:
+      - Linux:
+
+          ```
+          export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
+          ```
+    
+      - Windows:
 
         ```
-        export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
+        set OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
         ```
-    (On Windows, use set OPENAI_API_KEY=sk-xxxx.)
 
     Or create a .env file (not tracked in version control) and store your API key there:
 
