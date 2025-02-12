@@ -101,11 +101,16 @@ Visit http://127.0.0.1:5000/ to access the web app.
 
 ```
 .
+├── static/             
+│   └── css/
+│       └── stle.css    # CSS for the multi-step form
+├── js/                 
+│   └── app.js          # JavaScript for the multi-step form
+├── templates/
+│   └── index.html      # Implements the multi-step form using JavaScript
 ├── app.py              # Main Flask app with routes
 ├── analyze.py          # OpenAI-related analysis logic (link validation, prompt construction)
 ├── test_analyze.py     # Unit tests for the analyze.py logic
-├── templates/
-│   └── index.html      # Implements the multi-step form using JavaScript
 ├── requirements.txt    # Python package dependencies
 ├── README.md           # This README file
 ├── LICENSE             # License (MIT)
@@ -223,17 +228,6 @@ Please see the ```LICENSE``` file for more information.
 - Always respect user privacy and data protection laws.
 - If you have any concerns, please contact the author.
 - The author is not responsible for any misuse or damage caused by this software.
-
-
-
-
-
-
-
-
-
-
-
 
 
 
