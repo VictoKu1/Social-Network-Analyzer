@@ -209,36 +209,3 @@ It should not be considered professional mental health advice.
     except OpenAIError as e:
         print(f"OpenAI API Error: {e}")
         return f"OpenAI API Error: {e}"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
