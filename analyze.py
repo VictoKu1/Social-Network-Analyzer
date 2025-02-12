@@ -205,11 +205,11 @@ It should not be considered professional mental health advice.
             # You can adjust max_tokens, temperature, etc. as needed.
         )
         result = response.choices[0].message.content + disclamer
-        print(prompt)
         return result
     except OpenAIError as e:
         print(f"OpenAI API Error: {e}")
         return f"OpenAI API Error: {e}"
+
 
 
 
