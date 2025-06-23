@@ -5,4 +5,11 @@ beautifulsoup4
 snscrape
 python-dotenv
 pytest
+tweepy
+praw
+linkedin-api
+facebook-sdk
+instaloader
+selenium
+webdriver-manager
 

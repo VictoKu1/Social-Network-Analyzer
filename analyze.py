@@ -1,12 +1,13 @@
 """
 Module for analyzing social media links using OpenAI API.
-This version attempts to fetch content from the provided URLs.
+This version uses platform-specific API integration for better data fetching.
 """
 
 import os
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI, OpenAIError
+from social_media_fetchers import fetch_social_media_data, format_social_media_data
 
 # OpenAI API key (make sure this is set in your environment)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -129,42 +130,39 @@ def validate_social_link(link: str):
 
 def fetch_social_media_content(url: str) -> str:
     """
-    Fetches the HTML content from the provided URL and attempts to extract
-    meaningful text. Note: Many modern social sites rely on JavaScript rendering,
-    so this basic method might not work on every site.
+    DEPRECATED: Use fetch_social_media_data from social_media_fetchers instead.
+    This function is kept for backward compatibility but will be removed in future versions.
     """
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200:
-            return f"Failed to fetch content (status code: {response.status_code})."
-        soup = BeautifulSoup(response.text, 'html.parser')
-        # Remove script and style elements
-        for script_or_style in soup(["script", "style"]):
-            script_or_style.decompose()
-        text = soup.get_text(separator="\n")
-        # Clean up the text
-        lines = (line.strip() for line in text.splitlines())
-        clean_text = "\n".join(line for line in lines if line)
-        # Optionally limit the amount of text to avoid huge prompts
-        return clean_text[:2000]  # return first 2000 characters
-    except requests.exceptions.RequestException as e:
-        return f"Error fetching content: {str(e)}"
+    # Use the new platform-specific fetcher
+    data = fetch_social_media_data(url)
+    if data:
+        return format_social_media_data(data)
+    else:
+        return f"Failed to fetch content from {url}"
 
 def analyze_personality(links_info, personal_description):
     """
     Combines data fetched from user-provided links with the personal description,
     then sends it to the OpenAI API for personality analysis.
+    Uses platform-specific API integration for better data extraction.
     """
     if not links_info and not personal_description:
         return "No data provided for analysis."
 
-    # Fetch and combine content from each social media link
+    # Fetch and combine content from each social media link using platform-specific fetchers
     combined_text = "Fetched Social Media Data:\n"
     for link_data in links_info:
         url = link_data.get('url')
         platform = link_data.get('platform')
         combined_text += f"\n---\nPlatform: {platform}\nURL: {url}\n"
-        content = fetch_social_media_content(url)
+        
+        # Use the new platform-specific fetcher
+        data = fetch_social_media_data(url)
+        if data:
+            content = format_social_media_data(data)
+        else:
+            content = f"Failed to fetch content from {url}"
+        
         combined_text += f"Extracted Content:\n{content}\n"
 
     combined_text += "\nUser Provided Personal Description:\n" + personal_description + "\n"
@@ -184,7 +182,7 @@ Please provide:
 5. Any other relevant insights.
 
 After generating the above text, please provide a (0-100)
-evaluation for each of the following parameters with 1 line expalination
+evaluation for each of the following parameters with 1 line explanation
 and return it as a table:
 {', '.join(parameters)}
     """

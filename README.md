@@ -11,9 +11,40 @@ This repository contains a **Flask-based web application** that lets users:
 
 > **IMPORTANT DISCLAIMER**  
 > - This is **not** a clinical or professional psychological tool.  
-> - The output can contain errors or “hallucinations” typical of Large Language Models.  
-> - Always comply with each social platform’s terms of service regarding data collection/scraping.  
+> - The output can contain errors or "hallucinations" typical of Large Language Models.  
+> - Always comply with each social platform's terms of service regarding data collection/scraping.  
 > - Handle personal data with caution and respect user privacy.
+
+---
+
+## 🚀 New Features: Platform-Specific API Integration
+
+The application now includes **advanced platform-specific API integration** for reliable social media data fetching:
+
+### ✅ Supported Platforms
+- **Twitter/X**: Full API v2 and v1.1 support with rate limiting
+- **LinkedIn**: Profile data extraction with authentication
+- **Instagram**: Public and private profile access via instaloader
+- **Facebook**: Graph API integration for profile data
+- **Reddit**: User data and post history via PRAW
+- **Generic Platforms**: Web scraping fallback for other platforms
+
+### 🔧 Key Improvements
+- **Rate Limiting**: Automatic API rate limit management
+- **Authentication**: OAuth and API key support for each platform
+- **Fallback Mechanisms**: Web scraping when APIs are unavailable
+- **Structured Data**: Consistent data format across all platforms
+- **Error Handling**: Comprehensive error handling and recovery
+
+### 📊 Enhanced Data Extraction
+- Profile information (name, bio, location, website)
+- Follower/following counts
+- Verification status
+- Recent posts and activity
+- Account creation dates
+- Profile pictures
+
+For detailed setup instructions, see [API_INTEGRATION_GUIDE.md](API_INTEGRATION_GUIDE.md).
 
 ---
 
@@ -31,8 +62,13 @@ This repository contains a **Flask-based web application** that lets users:
   - Displays **✓** for valid links and **✗** for invalid links.
 
 - **OpenAI Integration**  
-  - A sample prompt demonstrates how to create a short “personality analysis.”  
+  - A sample prompt demonstrates how to create a short "personality analysis."  
   - Requires an **OpenAI API key** (set in `.env` or as an environment variable).
+
+- **Platform-Specific API Integration**  
+  - Reliable data fetching using official APIs where available
+  - Automatic fallback to web scraping for unsupported platforms
+  - Rate limiting and error handling for robust operation
 
 ---
 
@@ -54,26 +90,26 @@ This repository contains a **Flask-based web application** that lets users:
     pip install -r requirements.txt
     ```
 
-3. **Set Your OpenAI API Key**:
+3. **Set Your API Keys**:
 
-    You can either set it as an environment variable:
-      - Linux:
+    Create a `.env` file with your API credentials:
 
-          ```
-          export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
-          ```
+    ```env
+    # Required: OpenAI API
+    OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
     
-      - Windows:
+    # Optional: Platform-specific APIs (see config_example.py for details)
+    TWITTER_BEARER_TOKEN=your_twitter_bearer_token
+    LINKEDIN_EMAIL=your_linkedin_email
+    LINKEDIN_PASSWORD=your_linkedin_password
+    INSTAGRAM_USERNAME=your_instagram_username
+    INSTAGRAM_PASSWORD=your_instagram_password
+    FACEBOOK_ACCESS_TOKEN=your_facebook_access_token
+    REDDIT_CLIENT_ID=your_reddit_client_id
+    REDDIT_CLIENT_SECRET=your_reddit_client_secret
+    ```
 
-        ```
-        set OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
-        ```
-
-    Or create a .env file (not tracked in version control) and store your API key there:
-
-        ```
-        OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
-        ```
+    **Note**: Only the OpenAI API key is required. Platform-specific APIs are optional and will fall back to web scraping if not provided.
 
 4. **Run the Flask App**:
 
@@ -85,6 +121,12 @@ This repository contains a **Flask-based web application** that lets users:
 
 Visit http://127.0.0.1:5000/ to access the web app.
 
+6. **Test the API Integration** (Optional):
+
+    ```
+    python test_api_integration.py
+    ```
+
 ---
 
 ## Usage
@@ -92,8 +134,10 @@ Visit http://127.0.0.1:5000/ to access the web app.
 2. **Step B**: Enter each URL in the generated fields (e.g., https://x.com/example), then click **Validate Links**.
  * If a link is marked ✗, correct it.
  * If all links are ✓, the Continue button appears.
-3. **Step C**: Provide a **personal description** for context (e.g., “She is very outgoing and enjoys discussing tech trends.”).
+3. **Step C**: Provide a **personal description** for context (e.g., "She is very outgoing and enjoys discussing tech trends.").
 4. **Click** ```Analyze```: The server sends the data to OpenAI and displays a final summary.
+
+The application will now use platform-specific APIs when available, providing more reliable and comprehensive data extraction.
 
 ---
 
@@ -103,19 +147,24 @@ Visit http://127.0.0.1:5000/ to access the web app.
 .
 ├── static/             
 │   └── css/
-│       └── stle.css    # CSS for the multi-step form
+│       └── style.css    # CSS for the multi-step form
 ├── js/                 
 │   └── app.js          # JavaScript for the multi-step form
 ├── templates/
 │   └── index.html      # Implements the multi-step form using JavaScript
 ├── app.py              # Main Flask app with routes
 ├── analyze.py          # OpenAI-related analysis logic (link validation, prompt construction)
+├── social_media_fetchers.py  # NEW: Platform-specific API integration
 ├── test_analyze.py     # Unit tests for the analyze.py logic
+├── test_api_integration.py   # NEW: API integration tests
+├── config_example.py   # NEW: Example configuration file
+├── API_INTEGRATION_GUIDE.md  # NEW: Comprehensive API setup guide
 ├── requirements.txt    # Python package dependencies
 ├── README.md           # This README file
 ├── LICENSE             # License (MIT)
 └── .gitignore          # Prevents committing unwanted files
 ```
+
 - ```app.py```: 
   - Defines the Flask routes:
     - ```GET /``` serves the main page (```index.html```)
@@ -126,10 +175,32 @@ Visit http://127.0.0.1:5000/ to access the web app.
   - Contains the core **OpenAI analysis** logic:
     - ```validate_social_link(link)``` checks if a URL is recognized (Twitter, Instagram, etc.).
     - ```analyze_personality(links_info, personal_description)``` constructs a prompt and calls the OpenAI API.
+    - **Updated** to use platform-specific fetchers for better data extraction.
+
+- ```social_media_fetchers.py```: **NEW**
+  - Platform-specific API integration for Twitter, LinkedIn, Instagram, Facebook, and Reddit
+  - Rate limiting and error handling
+  - Fallback mechanisms for unsupported platforms
+  - Structured data extraction and formatting
 
 - ```test_analyze.py```:
   - Contains **unit tests** for functions in ```analyze.py```.
-  - Uses Python’s built-in ```unittest``` or can be adapted for ```pytest```.
+  - Uses Python's built-in ```unittest``` or can be adapted for ```pytest```.
+
+- ```test_api_integration.py```: **NEW**
+  - Tests for the platform-specific API integration
+  - Demonstrates the difference between old and new fetching methods
+  - Validates rate limiting and error handling
+
+- ```config_example.py```: **NEW**
+  - Example configuration file showing all required API credentials
+  - Detailed setup instructions for each platform
+  - Security best practices
+
+- ```API_INTEGRATION_GUIDE.md```: **NEW**
+  - Comprehensive guide for setting up platform-specific APIs
+  - Troubleshooting and performance optimization tips
+  - Security considerations and best practices
 
 - ```Templates/index.html```:
   - Implements the **multi-step form** using JavaScript.
@@ -137,6 +208,7 @@ Visit http://127.0.0.1:5000/ to access the web app.
 
 - ```requirements.txt```:
   - Python package dependencies.
+  - **Updated** to include platform-specific API libraries.
 
 - ```.gitignore```:
   - Hides temporary or sensitive files (e.g., ```venv/```, ```.env```, ```__pycache__```, etc.) from version control.
@@ -147,7 +219,7 @@ Visit http://127.0.0.1:5000/ to access the web app.
 
 To run the **unit tests** for ```analyze.py```, use one of the following:
 
-### Using Python’s built-in ```unittest```
+### Using Python's built-in ```unittest```
 
 ```
 python -m unittest discover
@@ -164,10 +236,44 @@ python -m unittest test_analyze.py
 pytest
 ```
 
+### Testing API Integration (NEW)
+
+```
+python test_api_integration.py
+```
+
 Tests in ```test_analyze.py```:
 
 - **Mock** the OpenAI API to avoid real API calls.
 - Verify that functions like ```validate_social_link``` and ```analyze_personality``` behave as expected.
+
+Tests in ```test_api_integration.py```:
+
+- **Compare** old generic fetching with new platform-specific fetching
+- **Validate** rate limiting and error handling
+- **Test** platform detection and username extraction
+- **Verify** fallback mechanisms work correctly
+
+---
+
+## API Setup
+
+For detailed instructions on setting up platform-specific APIs, see [API_INTEGRATION_GUIDE.md](API_INTEGRATION_GUIDE.md).
+
+### Quick Setup Summary
+
+1. **Twitter/X**: Get API keys from [Twitter Developer Portal](https://developer.twitter.com/en/portal/dashboard)
+2. **LinkedIn**: Use email/password (not recommended for production)
+3. **Instagram**: Use username/password for private profiles
+4. **Facebook**: Get access token from [Facebook Developers](https://developers.facebook.com/)
+5. **Reddit**: Create app at [Reddit App Preferences](https://www.reddit.com/prefs/apps)
+
+### Security Notes
+
+- Never commit API keys to version control
+- Use environment variables for sensitive data
+- Regularly rotate your API keys
+- Monitor API usage to avoid rate limits
 
 ---
 
@@ -197,13 +303,9 @@ Please see the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 
-- This software is provided “as is,” without any warranty or guarantee.
-- The output from any language model can be inaccurate or biased.
-- Please use responsibly and always comply with the relevant platform policies and laws.
-- Do not use this software for any high-stakes decisions.
-- Always respect user privacy and data protection laws.
-- If you have any concerns, please contact the author.
-- The author is not responsible for any misuse or damage caused by this software.
+- This software is provided "as is," without any warranty or guarantee.
+- Always comply with social media platforms' terms of service and API usage policies.
+- Respect user privacy and data protection regulations.
 
 
 
