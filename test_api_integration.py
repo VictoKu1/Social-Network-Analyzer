@@ -10,9 +10,9 @@ from analyze import fetch_social_media_content
 
 def test_platform_specific_fetching():
     """Test the new platform-specific fetching system."""
-    
+
     print("=== Social Media API Integration Test ===\n")
-    
+
     # Test URLs for different platforms
     test_urls = [
         "https://twitter.com/elonmusk",
@@ -23,17 +23,17 @@ def test_platform_specific_fetching():
         "https://github.com/torvalds",
         "https://youtube.com/@PewDiePie"
     ]
-    
+
     manager = SocialMediaFetcherManager()
-    
+
     for url in test_urls:
         print(f"Testing URL: {url}")
         print("-" * 50)
-        
+
         # Test new platform-specific fetcher
         print("Using NEW platform-specific fetcher:")
         data = fetch_social_media_data(url)
-        
+
         if data:
             print(f"✅ Success! Platform: {data.platform}")
             print(f"   Username: {data.username}")
@@ -43,9 +43,9 @@ def test_platform_specific_fetching():
             print(f"   Verified: {data.verified}")
         else:
             print("❌ Failed to fetch data")
-        
+
         print()
-        
+
         # Test old generic fetcher for comparison
         print("Using OLD generic fetcher:")
         try:
@@ -57,57 +57,57 @@ def test_platform_specific_fetching():
                 print("❌ Failed to fetch data (Generic method)")
         except Exception as e:
             print(f"❌ Error with generic method: {e}")
-        
+
         print("\n" + "="*60 + "\n")
 
 def test_rate_limiting():
     """Test rate limiting functionality."""
-    
+
     print("=== Rate Limiting Test ===\n")
-    
+
     from social_media_fetchers import RateLimiter
-    
+
     # Test rate limiter
     limiter = RateLimiter(calls_per_minute=5)
-    
+
     print("Testing rate limiter with 5 calls per minute...")
     for i in range(7):
         print(f"Call {i+1}: ", end="")
         limiter.wait_if_needed()
         print("✅ Proceeded")
-    
+
     print("\nRate limiting test completed!")
 
 def test_error_handling():
     """Test error handling and fallback mechanisms."""
-    
+
     print("=== Error Handling Test ===\n")
-    
+
     # Test with invalid URLs
     invalid_urls = [
         "https://invalid-domain-that-does-not-exist.com/user",
         "https://twitter.com/nonexistentuser123456789",
         "not-a-valid-url"
     ]
-    
+
     for url in invalid_urls:
         print(f"Testing invalid URL: {url}")
         data = fetch_social_media_data(url)
-        
+
         if data:
             print(f"✅ Unexpected success: {data.platform}")
         else:
             print("❌ Expected failure - handled gracefully")
-        
+
         print()
 
 def test_platform_detection():
     """Test platform detection functionality."""
-    
+
     print("=== Platform Detection Test ===\n")
-    
+
     manager = SocialMediaFetcherManager()
-    
+
     test_urls = [
         "https://twitter.com/user",
         "https://x.com/user",
@@ -120,7 +120,7 @@ def test_platform_detection():
         "https://medium.com/@user",
         "https://tiktok.com/@user"
     ]
-    
+
     for url in test_urls:
         for fetcher in manager.fetchers:
             if fetcher.can_handle_url(url):
@@ -134,28 +134,28 @@ def test_platform_detection():
 
 def main():
     """Main test function."""
-    
+
     print("Social Media API Integration Test Suite")
     print("=" * 50)
-    
+
     # Check if required environment variables are set
     required_vars = ['OPENAI_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
+
     if missing_vars:
         print(f"⚠️  Warning: Missing environment variables: {missing_vars}")
         print("Some features may not work without proper API credentials.")
         print("See config_example.py for setup instructions.\n")
-    
+
     try:
         # Run tests
         test_platform_detection()
         test_rate_limiting()
         test_error_handling()
         test_platform_specific_fetching()
-        
+
         print("✅ All tests completed!")
-        
+
     except KeyboardInterrupt:
         print("\n⚠️  Tests interrupted by user")
     except Exception as e:
@@ -164,4 +164,4 @@ def main():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    main() 
+    main()

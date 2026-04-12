@@ -155,21 +155,21 @@ def analyze_personality(links_info, personal_description):
         url = link_data.get('url')
         platform = link_data.get('platform')
         combined_text += f"\n---\nPlatform: {platform}\nURL: {url}\n"
-        
+
         # Use the new platform-specific fetcher
         data = fetch_social_media_data(url)
         if data:
             content = format_social_media_data(data)
         else:
             content = f"Failed to fetch content from {url}"
-        
+
         combined_text += f"Extracted Content:\n{content}\n"
 
     combined_text += "\nUser Provided Personal Description:\n" + personal_description + "\n"
 
     # Build the prompt for OpenAI
     prompt = f"""
-You are an AI that analyzes a person's social media presence and personal description 
+You are an AI that analyzes a person's social media presence and personal description
 to provide a concise "personality" summary. Here is the provided data:
 
 {combined_text}
@@ -188,9 +188,9 @@ and return it as a table:
     """
 
     disclamer = """
-    
-**Disclaimer**: This analysis is based on limited publicly available information 
-and is a broad characterization rather than a definitive assessment of personality. 
+
+**Disclaimer**: This analysis is based on limited publicly available information
+and is a broad characterization rather than a definitive assessment of personality.
 It should not be considered professional mental health advice.
     """
     try:
