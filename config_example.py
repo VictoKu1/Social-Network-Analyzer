@@ -38,7 +38,7 @@ REDDIT_USER_AGENT = "SocialNetworkAnalyzer/1.0"
 
 # GitHub API Configuration
 # Optional: get a Personal Access Token from https://github.com/settings/tokens
-# Without a token the public API allows 60 requests/hour; with a token up to 5 000/hour.
+# Without a token the public API allows 60 requests/hour; with a token up to 5,000/hour.
 GITHUB_TOKEN = "your_github_token_here"
 
 # YouTube Data API v3 Configuration
@@ -91,7 +91,7 @@ INSTRUCTIONS FOR SETTING UP API CREDENTIALS:
    - A Personal Access Token is optional but recommended for higher rate limits.
    - Generate one at https://github.com/settings/tokens
    - Without a token the public API allows 60 unauthenticated requests per hour;
-     with a token you get up to 5 000 requests per hour.
+     with a token you get up to 5,000 requests per hour.
 
 7. YOUTUBE DATA API v3:
    - Go to https://console.developers.google.com/

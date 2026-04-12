@@ -731,7 +731,7 @@ class RedditFetcher(BaseSocialMediaFetcher):
 
 class GitHubFetcher(BaseSocialMediaFetcher):
     """GitHub REST API fetcher. Works without authentication for public profiles;
-    set GITHUB_TOKEN for a higher rate limit (5 000 requests/hour vs 60/hour)."""
+    set GITHUB_TOKEN for a higher rate limit (5,000 requests/hour vs 60/hour)."""
 
     def __init__(self):
         super().__init__()
@@ -741,7 +741,8 @@ class GitHubFetcher(BaseSocialMediaFetcher):
         self.session.headers.update({'Accept': 'application/vnd.github+json'})
 
     def can_handle_url(self, url: str) -> bool:
-        return 'github.com' in url
+        netloc = urlparse(url).netloc.lower()
+        return netloc == 'github.com' or netloc.endswith('.github.com')
 
     def extract_username_from_url(self, url: str) -> str:
         """Extract GitHub username from URL."""
@@ -813,7 +814,8 @@ class YouTubeFetcher(BaseSocialMediaFetcher):
         self.api_key = os.getenv('YOUTUBE_API_KEY')
 
     def can_handle_url(self, url: str) -> bool:
-        return 'youtube.com' in url or 'youtu.be' in url
+        netloc = urlparse(url).netloc.lower()
+        return netloc in ('youtube.com', 'youtu.be') or netloc.endswith('.youtube.com')
 
     def extract_username_from_url(self, url: str) -> str:
         """Extract channel handle or name from a YouTube URL."""
@@ -956,7 +958,8 @@ class TikTokFetcher(BaseSocialMediaFetcher):
     Graph meta-tag scraping from the profile page."""
 
     def can_handle_url(self, url: str) -> bool:
-        return 'tiktok.com' in url
+        netloc = urlparse(url).netloc.lower()
+        return netloc == 'tiktok.com' or netloc.endswith('.tiktok.com')
 
     def extract_username_from_url(self, url: str) -> str:
         """Extract TikTok username from URL (handles /@username paths)."""
@@ -1033,7 +1036,8 @@ class TumblrFetcher(BaseSocialMediaFetcher):
         self.api_key = os.getenv('TUMBLR_API_KEY')
 
     def can_handle_url(self, url: str) -> bool:
-        return 'tumblr.com' in url
+        netloc = urlparse(url).netloc.lower()
+        return netloc == 'tumblr.com' or netloc.endswith('.tumblr.com')
 
     def extract_username_from_url(self, url: str) -> str:
         """Extract blog name from a Tumblr URL.

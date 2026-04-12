@@ -45,15 +45,15 @@ The new system provides:
 
 ### 6. GitHub
 - **API**: GitHub REST API v3 (public)
-- **Authentication**: Optional `GITHUB_TOKEN` for higher rate limits (5 000 req/hour vs 60 req/hour)
+- **Authentication**: Optional `GITHUB_TOKEN` for higher rate limits (5,000 req/hour vs 60 req/hour)
 - **Features**: Profile data, public repositories, follower/following counts, location, website
-- **Rate Limits**: 60 unauthenticated requests/hour; 5 000 with token
+- **Rate Limits**: 60 unauthenticated requests/hour; 5,000 with token
 
 ### 7. YouTube
 - **API**: YouTube Data API v3
 - **Authentication**: `YOUTUBE_API_KEY` required; falls back to Open Graph scraping
 - **Features**: Channel info, subscriber count, description, country, join date
-- **Rate Limits**: 10 000 units/day (search = 100 units, channels = 1 unit)
+- **Rate Limits**: 10,000 units/day (search = 100 units, channels = 1 unit)
 
 ### 8. TikTok
 - **API**: None (no official public API)
@@ -64,7 +64,7 @@ The new system provides:
 - **API**: Tumblr API v2 (public read-only endpoints)
 - **Authentication**: `TUMBLR_API_KEY` required; falls back to Open Graph scraping
 - **Features**: Blog title, description, recent posts, follower count, avatar
-- **Rate Limits**: 1 000 requests/hour (unauthenticated), 5 000/hour (with key)
+- **Rate Limits**: 1,000 requests/hour (unauthenticated), 5,000/hour (with key)
 
 ### 10. Generic Platforms
 - **Method**: Web scraping with BeautifulSoup
@@ -120,7 +120,7 @@ REDDIT_CLIENT_ID=your_reddit_client_id_here
 REDDIT_CLIENT_SECRET=your_reddit_client_secret_here
 REDDIT_USER_AGENT=SocialNetworkAnalyzer/1.0
 
-# GitHub API (optional – raises rate limit from 60 to 5 000 requests/hour)
+# GitHub API (optional – raises rate limit from 60 to 5,000 requests/hour)
 GITHUB_TOKEN=your_github_personal_access_token_here
 
 # YouTube Data API v3
@@ -174,7 +174,7 @@ TUMBLR_API_KEY=your_tumblr_consumer_key_here
 
 1. A Personal Access Token is **optional** but strongly recommended.
 2. Generate one at [GitHub Settings → Tokens](https://github.com/settings/tokens).
-3. Without a token the public API allows 60 requests/hour (unauthenticated); with a token you get up to 5 000 requests/hour.
+3. Without a token the public API allows 60 requests/hour (unauthenticated); with a token you get up to 5,000 requests/hour.
 4. No special permissions are required to read public profiles.
 
 #### YouTube Data API v3 Setup
