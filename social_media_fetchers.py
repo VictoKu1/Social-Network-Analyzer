@@ -5,12 +5,11 @@ Handles API integration, OAuth, rate limiting, and data extraction for various p
 
 import os
 import time
-import json
 import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -48,32 +47,32 @@ class SocialMediaData:
 
 class RateLimiter:
     """Simple rate limiter for API calls."""
-    
+
     def __init__(self, calls_per_minute: int = 60):
         self.calls_per_minute = calls_per_minute
         self.calls = []
-    
+
     def wait_if_needed(self):
         """Wait if rate limit would be exceeded."""
         now = time.time()
         # Remove calls older than 1 minute
         self.calls = [call_time for call_time in self.calls if now - call_time < 60]
-        
+
         if len(self.calls) >= self.calls_per_minute:
             sleep_time = 60 - (now - self.calls[0])
             if sleep_time > 0:
                 logger.info(f"Rate limit reached, waiting {sleep_time:.2f} seconds")
                 time.sleep(sleep_time)
-        
+
         self.calls.append(now)
 
 class BaseSocialMediaFetcher(ABC):
     """Abstract base class for social media fetchers."""
-    
+
     def __init__(self):
         self.rate_limiter = RateLimiter()
         self.session = self._create_session()
-    
+
     def _create_session(self) -> requests.Session:
         """Create a requests session with retry logic."""
         session = requests.Session()
@@ -89,7 +88,7 @@ class BaseSocialMediaFetcher(ABC):
             'User-Agent': 'Mozilla/5.0 (compatible; SocialNetworkAnalyzer/1.0)'
         })
         return session
-    
+
     def _url_matches_domain(self, url: str, *domains: str) -> bool:
         """Return True if the URL's netloc matches any of the given domains (or a subdomain)."""
         netloc = urlparse(url).netloc.lower()
@@ -101,31 +100,34 @@ class BaseSocialMediaFetcher(ABC):
     def can_handle_url(self, url: str) -> bool:
         """Check if this fetcher can handle the given URL."""
         pass
-    
+
     @abstractmethod
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from URL."""
         pass
-    
+
     @abstractmethod
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch profile data from the given URL."""
         pass
-    
+
     def _handle_rate_limit(self):
         """Handle rate limiting."""
         self.rate_limiter.wait_if_needed()
 
 class TwitterFetcher(BaseSocialMediaFetcher):
     """Twitter/X API fetcher."""
-    
+
     def __init__(self):
         super().__init__()
         self.api = None
         self._initialize_api()
-    
+
     def _initialize_api(self):
         """Initialize Twitter API client."""
+        if tweepy is None:
+            logger.warning("tweepy not installed, Twitter API unavailable")
+            return
         try:
             # Twitter API v2 credentials
             bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
@@ -133,45 +135,36 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             api_secret = os.getenv('TWITTER_API_SECRET')
             access_token = os.getenv('TWITTER_ACCESS_TOKEN')
             access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-            
+
             if bearer_token:
-                # Import tweepy only if credentials are available
-                try:
-                    import tweepy
-                    self.api = tweepy.Client(bearer_token=bearer_token)
-                except ImportError:
-                    logger.warning("tweepy not installed, Twitter API unavailable")
+                self.api = tweepy.Client(bearer_token=bearer_token)
             elif all([api_key, api_secret, access_token, access_token_secret]):
-                try:
-                    import tweepy
-                    auth = tweepy.OAuthHandler(api_key, api_secret)
-                    auth.set_access_token(access_token, access_token_secret)
-                    self.api = tweepy.API(auth)
-                except ImportError:
-                    logger.warning("tweepy not installed, Twitter API unavailable")
+                auth = tweepy.OAuthHandler(api_key, api_secret)
+                auth.set_access_token(access_token, access_token_secret)
+                self.api = tweepy.API(auth)
             else:
                 logger.warning("Twitter API credentials not found")
-        except Exception as e:
-            logger.error(f"Failed to initialize Twitter API: {e}")
-    
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to initialize Twitter API: %s", e)
+
     def can_handle_url(self, url: str) -> bool:
         return self._url_matches_domain(url, 'twitter.com', 'x.com')
-    
+
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Twitter URL."""
         path = urlparse(url).path
         username = path.strip('/').split('/')[0]
         return username
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Twitter profile data."""
         if not self.api:
             return self._fallback_fetch(url)
-        
+
         try:
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
-            
+
             # Distinguish between API v2 (tweepy.Client) and v1.1 (tweepy.API)
             if tweepy and isinstance(self.api, tweepy.Client):
                 user = self.api.get_user(
@@ -186,11 +179,13 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             elif tweepy and isinstance(self.api, tweepy.API):
                 user = self.api.get_user(screen_name=username)
                 return self._parse_twitter_user_v1(user, username)
-                
-        except Exception as e:
-            logger.error(f"Twitter API error: {e}")
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Twitter API error: %s", e)
             return self._fallback_fetch(url)
-    
+
+        return self._fallback_fetch(url)
+
     def _parse_twitter_user(self, user, username: str) -> SocialMediaData:
         """Parse Twitter API v2 user data."""
         public_metrics = user.public_metrics or {}
@@ -215,7 +210,7 @@ class TwitterFetcher(BaseSocialMediaFetcher):
                 'public_metrics': dict(public_metrics),
             }
         )
-    
+
     def _parse_twitter_user_v1(self, user, username: str) -> SocialMediaData:
         """Parse Twitter API v1.1 user data."""
         return SocialMediaData(
@@ -233,7 +228,7 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             website=user.url,
             raw_data=user._json if hasattr(user, '_json') else {}
         )
-    
+
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping when API is not available."""
         try:
@@ -242,27 +237,27 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
+
                 # Try to extract basic info
                 display_name = ""
                 bio = ""
-                
+
                 # Look for common selectors
                 name_selectors = ['h1', 'h2', '[data-testid="UserName"]', '.profile-name']
                 bio_selectors = ['[data-testid="UserDescription"]', '.bio', '.description']
-                
+
                 for selector in name_selectors:
                     element = soup.select_one(selector)
                     if element:
                         display_name = element.get_text().strip()
                         break
-                
+
                 for selector in bio_selectors:
                     element = soup.select_one(selector)
                     if element:
                         bio = element.get_text().strip()
                         break
-                
+
                 return SocialMediaData(
                     platform="Twitter",
                     username=self.extract_username_from_url(url),
@@ -278,26 +273,26 @@ class TwitterFetcher(BaseSocialMediaFetcher):
                     website=None,
                     raw_data={}
                 )
-            
+
         except Exception as e:
             logger.error(f"Twitter fallback fetch error: {e}")
-        
+
         return None
 
 class LinkedInFetcher(BaseSocialMediaFetcher):
     """LinkedIn API fetcher."""
-    
+
     def __init__(self):
         super().__init__()
         self.api = None
         self._initialize_api()
-    
+
     def _initialize_api(self):
         """Initialize LinkedIn API client."""
         try:
             email = os.getenv('LINKEDIN_EMAIL')
             password = os.getenv('LINKEDIN_PASSWORD')
-            
+
             if email and password:
                 try:
                     from linkedin_api import Linkedin
@@ -308,10 +303,10 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
                 logger.warning("LinkedIn credentials not found")
         except Exception as e:
             logger.error(f"Failed to initialize LinkedIn API: {e}")
-    
+
     def can_handle_url(self, url: str) -> bool:
         return self._url_matches_domain(url, 'linkedin.com')
-    
+
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from LinkedIn URL."""
         path = urlparse(url).path
@@ -319,18 +314,18 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
         if len(parts) >= 2 and parts[0] == 'in':
             return parts[1]
         return parts[0] if parts else ""
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch LinkedIn profile data."""
         if not self.api:
             return self._fallback_fetch(url)
-        
+
         try:
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
-            
+
             profile = self.api.get_profile(username)
-            
+
             return SocialMediaData(
                 platform="LinkedIn",
                 username=username,
@@ -346,11 +341,11 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
                 website=profile.get('website'),
                 raw_data=profile
             )
-            
+
         except Exception as e:
             logger.error(f"LinkedIn API error: {e}")
             return self._fallback_fetch(url)
-    
+
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
@@ -358,19 +353,19 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
+
                 display_name = ""
                 bio = ""
-                
+
                 # LinkedIn specific selectors
                 name_element = soup.select_one('h1.text-heading-xlarge')
                 if name_element:
                     display_name = name_element.get_text().strip()
-                
+
                 bio_element = soup.select_one('.pv-shared-text-with-see-more')
                 if bio_element:
                     bio = bio_element.get_text().strip()
-                
+
                 return SocialMediaData(
                     platform="LinkedIn",
                     username=self.extract_username_from_url(url),
@@ -386,30 +381,30 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
                     website=None,
                     raw_data={}
                 )
-            
+
         except Exception as e:
             logger.error(f"LinkedIn fallback fetch error: {e}")
-        
+
         return None
 
 class InstagramFetcher(BaseSocialMediaFetcher):
     """Instagram API fetcher using instaloader."""
-    
+
     def __init__(self):
         super().__init__()
         self.loader = None
         self._initialize_loader()
-    
+
     def _initialize_loader(self):
         """Initialize instaloader."""
         try:
             username = os.getenv('INSTAGRAM_USERNAME')
             password = os.getenv('INSTAGRAM_PASSWORD')
-            
+
             try:
                 import instaloader
                 self.loader = instaloader.Instaloader()
-                
+
                 if username and password:
                     self.loader.login(username, password)
                 else:
@@ -418,28 +413,28 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                 logger.warning("instaloader not installed, Instagram API unavailable")
         except Exception as e:
             logger.error(f"Failed to initialize Instagram loader: {e}")
-    
+
     def can_handle_url(self, url: str) -> bool:
         return self._url_matches_domain(url, 'instagram.com')
-    
+
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Instagram URL."""
         path = urlparse(url).path
         username = path.strip('/').split('/')[0]
         return username
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Instagram profile data."""
         if not self.loader:
             return self._fallback_fetch(url)
-        
+
         try:
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
-            
+
             import instaloader
             profile = instaloader.Profile.from_username(self.loader.context, username)
-            
+
             # Get recent posts
             posts = []
             for post in profile.get_posts():
@@ -451,7 +446,7 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                     'comments': post.comments,
                     'date': post.date.isoformat() if post.date else None
                 })
-            
+
             return SocialMediaData(
                 platform="Instagram",
                 username=username,
@@ -471,11 +466,11 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                     'posts_count': profile.mediacount
                 }
             )
-            
+
         except Exception as e:
             logger.error(f"Instagram API error: {e}")
             return self._fallback_fetch(url)
-    
+
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
@@ -483,19 +478,19 @@ class InstagramFetcher(BaseSocialMediaFetcher):
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
+
                 display_name = ""
                 bio = ""
-                
+
                 # Instagram specific selectors
                 name_element = soup.select_one('h2')
                 if name_element:
                     display_name = name_element.get_text().strip()
-                
+
                 bio_element = soup.select_one('h1 + div')
                 if bio_element:
                     bio = bio_element.get_text().strip()
-                
+
                 return SocialMediaData(
                     platform="Instagram",
                     username=self.extract_username_from_url(url),
@@ -511,27 +506,27 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                     website=None,
                     raw_data={}
                 )
-            
+
         except Exception as e:
             logger.error(f"Instagram fallback fetch error: {e}")
-        
+
         return None
 
 class FacebookFetcher(BaseSocialMediaFetcher):
     """Facebook API fetcher."""
-    
+
     def __init__(self):
         super().__init__()
         self.graph = None
         self._initialize_api()
-    
+
     def _initialize_api(self):
         """Initialize Facebook Graph API."""
         try:
             access_token = os.getenv('FACEBOOK_ACCESS_TOKEN')
             app_id = os.getenv('FACEBOOK_APP_ID')
             app_secret = os.getenv('FACEBOOK_APP_SECRET')
-            
+
             if access_token:
                 try:
                     import facebook
@@ -549,31 +544,31 @@ class FacebookFetcher(BaseSocialMediaFetcher):
                 logger.warning("Facebook API credentials not found")
         except Exception as e:
             logger.error(f"Failed to initialize Facebook API: {e}")
-    
+
     def can_handle_url(self, url: str) -> bool:
         return self._url_matches_domain(url, 'facebook.com')
-    
+
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Facebook URL."""
         path = urlparse(url).path
         username = path.strip('/').split('/')[0]
         return username
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Facebook profile data."""
         if not self.graph:
             return self._fallback_fetch(url)
-        
+
         try:
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
-            
+
             # Facebook Graph API requires specific permissions
             profile = self.graph.get_object(
                 username,
                 fields='name,about,bio,website,location,verified'
             )
-            
+
             return SocialMediaData(
                 platform="Facebook",
                 username=username,
@@ -585,15 +580,17 @@ class FacebookFetcher(BaseSocialMediaFetcher):
                 profile_picture=None,
                 verified=profile.get('verified', False),
                 join_date=None,
-                location=profile.get('location', {}).get('name') if profile.get('location') else None,
+                location=(
+                    profile['location'].get('name') if profile.get('location') else None
+                ),
                 website=profile.get('website'),
                 raw_data=profile
             )
-            
+
         except Exception as e:
             logger.error(f"Facebook API error: {e}")
             return self._fallback_fetch(url)
-    
+
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
@@ -601,19 +598,19 @@ class FacebookFetcher(BaseSocialMediaFetcher):
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
+
                 display_name = ""
                 bio = ""
-                
+
                 # Facebook specific selectors
                 name_element = soup.select_one('h1')
                 if name_element:
                     display_name = name_element.get_text().strip()
-                
+
                 bio_element = soup.select_one('[data-testid="profile_bio"]')
                 if bio_element:
                     bio = bio_element.get_text().strip()
-                
+
                 return SocialMediaData(
                     platform="Facebook",
                     username=self.extract_username_from_url(url),
@@ -629,27 +626,27 @@ class FacebookFetcher(BaseSocialMediaFetcher):
                     website=None,
                     raw_data={}
                 )
-            
+
         except Exception as e:
             logger.error(f"Facebook fallback fetch error: {e}")
-        
+
         return None
 
 class RedditFetcher(BaseSocialMediaFetcher):
     """Reddit API fetcher using PRAW."""
-    
+
     def __init__(self):
         super().__init__()
         self.reddit = None
         self._initialize_api()
-    
+
     def _initialize_api(self):
         """Initialize Reddit API client."""
         try:
             client_id = os.getenv('REDDIT_CLIENT_ID')
             client_secret = os.getenv('REDDIT_CLIENT_SECRET')
             user_agent = os.getenv('REDDIT_USER_AGENT', 'SocialNetworkAnalyzer/1.0')
-            
+
             if client_id and client_secret:
                 try:
                     import praw
@@ -664,30 +661,30 @@ class RedditFetcher(BaseSocialMediaFetcher):
                 logger.warning("Reddit API credentials not found")
         except Exception as e:
             logger.error(f"Failed to initialize Reddit API: {e}")
-    
+
     def can_handle_url(self, url: str) -> bool:
         return self._url_matches_domain(url, 'reddit.com')
-    
+
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Reddit URL."""
         path = urlparse(url).path
         if '/user/' in path:
             return path.split('/user/')[1].split('/')[0]
-        elif '/u/' in path:
+        if '/u/' in path:
             return path.split('/u/')[1].split('/')[0]
         return ""
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Reddit profile data."""
         if not self.reddit:
             return self._fallback_fetch(url)
-        
+
         try:
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
-            
+
             redditor = self.reddit.redditor(username)
-            
+
             # Get recent posts and comments
             posts = []
             for submission in redditor.submissions.new(limit=10):
@@ -698,7 +695,7 @@ class RedditFetcher(BaseSocialMediaFetcher):
                     'score': submission.score,
                     'date': submission.created_utc
                 })
-            
+
             return SocialMediaData(
                 platform="Reddit",
                 username=username,
@@ -719,11 +716,11 @@ class RedditFetcher(BaseSocialMediaFetcher):
                     'is_mod': redditor.is_mod
                 }
             )
-            
+
         except Exception as e:
             logger.error(f"Reddit API error: {e}")
             return self._fallback_fetch(url)
-    
+
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
@@ -731,14 +728,14 @@ class RedditFetcher(BaseSocialMediaFetcher):
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
+
                 display_name = ""
-                
+
                 # Reddit specific selectors
                 name_element = soup.select_one('h1')
                 if name_element:
                     display_name = name_element.get_text().strip()
-                
+
                 return SocialMediaData(
                     platform="Reddit",
                     username=self.extract_username_from_url(url),
@@ -754,55 +751,55 @@ class RedditFetcher(BaseSocialMediaFetcher):
                     website=None,
                     raw_data={}
                 )
-            
+
         except Exception as e:
             logger.error(f"Reddit fallback fetch error: {e}")
-        
+
         return None
 
 class GenericFetcher(BaseSocialMediaFetcher):
     """Generic fetcher for platforms without specific API support."""
-    
+
     def can_handle_url(self, url: str) -> bool:
         return True  # Handles any URL
-    
+
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from generic URL."""
         path = urlparse(url).path
         return path.strip('/').split('/')[0] if path.strip('/') else ""
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Generic web scraping fallback."""
         try:
             self._handle_rate_limit()
-            
+
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
+
                 # Try to extract basic information
                 display_name = ""
                 bio = ""
-                
+
                 # Common selectors for profile information
                 name_selectors = ['h1', 'h2', '.profile-name', '.username', '.display-name']
                 bio_selectors = ['.bio', '.description', '.about', '.profile-bio']
-                
+
                 for selector in name_selectors:
                     element = soup.select_one(selector)
                     if element:
                         display_name = element.get_text().strip()
                         break
-                
+
                 for selector in bio_selectors:
                     element = soup.select_one(selector)
                     if element:
                         bio = element.get_text().strip()
                         break
-                
+
                 platform = self._detect_platform(url)
-                
+
                 return SocialMediaData(
                     platform=platform,
                     username=self.extract_username_from_url(url),
@@ -818,16 +815,16 @@ class GenericFetcher(BaseSocialMediaFetcher):
                     website=None,
                     raw_data={}
                 )
-            
+
         except Exception as e:
             logger.error(f"Generic fetch error: {e}")
-        
+
         return None
-    
+
     def _detect_platform(self, url: str) -> str:
         """Detect platform from URL."""
         domain = urlparse(url).netloc.lower()
-        
+
         platform_map = {
             'youtube.com': 'YouTube',
             'github.com': 'GitHub',
@@ -840,11 +837,11 @@ class GenericFetcher(BaseSocialMediaFetcher):
             'soundcloud.com': 'SoundCloud',
             'spotify.com': 'Spotify',
         }
-        
+
         for domain_part, platform in platform_map.items():
             if domain_part in domain:
                 return platform
-        
+
         return 'Unknown'
 
 class GitHubFetcher(BaseSocialMediaFetcher):
@@ -897,18 +894,17 @@ class GitHubFetcher(BaseSocialMediaFetcher):
                     website=data.get('blog') or None,
                     raw_data=data
                 )
-            else:
-                logger.warning(f"GitHub API returned {response.status_code} for {url}")
+            logger.warning("GitHub API returned %s for %s", response.status_code, url)
 
-        except Exception as e:
-            logger.error(f"GitHub API error: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("GitHub API error: %s", e)
 
         return None
 
 
 class SocialMediaFetcherManager:
     """Manager class to handle multiple social media fetchers."""
-    
+
     def __init__(self):
         self.fetchers = [
             TwitterFetcher(),
@@ -919,17 +915,17 @@ class SocialMediaFetcherManager:
             GitHubFetcher(),
             GenericFetcher()
         ]
-    
+
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch profile data using the appropriate fetcher."""
         for fetcher in self.fetchers:
             if fetcher.can_handle_url(url):
                 logger.info(f"Using {fetcher.__class__.__name__} for {url}")
                 return fetcher.fetch_profile_data(url)
-        
+
         logger.warning(f"No fetcher found for URL: {url}")
         return None
-    
+
     def get_supported_platforms(self) -> List[str]:
         """Get list of supported platforms."""
         platforms = []
@@ -949,7 +945,7 @@ def format_social_media_data(data: SocialMediaData) -> str:
     """Format social media data for analysis."""
     if not data:
         return "No data available"
-    
+
     formatted = f"""
 Platform: {data.platform}
 Username: {data.username}
@@ -962,10 +958,10 @@ Location: {data.location or 'Unknown'}
 Website: {data.website or 'Unknown'}
 Join Date: {data.join_date or 'Unknown'}
 """
-    
+
     if data.posts:
         formatted += "\nRecent Posts:\n"
         for i, post in enumerate(data.posts[:5], 1):  # Limit to 5 posts
             formatted += f"{i}. {post.get('caption', post.get('title', ''))[:200]}...\n"
-    
+
     return formatted

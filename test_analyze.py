@@ -5,6 +5,10 @@ Unit tests for the analyze module.
 import unittest
 from unittest.mock import patch, MagicMock
 from analyze import validate_social_link, analyze_personality
+from social_media_fetchers import (
+    TwitterFetcher, GitHubFetcher, RedditFetcher,
+    SocialMediaFetcherManager,
+)
 
 
 class TestAnalyze(unittest.TestCase):
@@ -84,24 +88,9 @@ class TestAnalyze(unittest.TestCase):
 class TestSocialMediaFetchers(unittest.TestCase):
     """Test cases for the social_media_fetchers module."""
 
-    def setUp(self):
-        from social_media_fetchers import (
-            TwitterFetcher, LinkedInFetcher, InstagramFetcher,
-            FacebookFetcher, RedditFetcher, GitHubFetcher, GenericFetcher,
-            SocialMediaFetcherManager,
-        )
-        self.TwitterFetcher = TwitterFetcher
-        self.LinkedInFetcher = LinkedInFetcher
-        self.InstagramFetcher = InstagramFetcher
-        self.FacebookFetcher = FacebookFetcher
-        self.RedditFetcher = RedditFetcher
-        self.GitHubFetcher = GitHubFetcher
-        self.GenericFetcher = GenericFetcher
-        self.SocialMediaFetcherManager = SocialMediaFetcherManager
-
     def test_fetcher_manager_contains_all_fetchers(self):
         """SocialMediaFetcherManager should include all platform fetchers."""
-        manager = self.SocialMediaFetcherManager()
+        manager = SocialMediaFetcherManager()
         class_names = [f.__class__.__name__ for f in manager.fetchers]
         for expected in [
             'TwitterFetcher', 'LinkedInFetcher', 'InstagramFetcher',
@@ -111,23 +100,23 @@ class TestSocialMediaFetchers(unittest.TestCase):
 
     def test_url_domain_matching_correct(self):
         """can_handle_url should match exact domains, not substrings."""
-        tw = self.TwitterFetcher()
+        tw = TwitterFetcher()
         self.assertTrue(tw.can_handle_url('https://twitter.com/user'))
         self.assertTrue(tw.can_handle_url('https://x.com/user'))
         self.assertFalse(tw.can_handle_url('https://notx.com/user'))
 
-        gh = self.GitHubFetcher()
+        gh = GitHubFetcher()
         self.assertTrue(gh.can_handle_url('https://github.com/torvalds'))
         self.assertTrue(gh.can_handle_url('https://gist.github.com/user'))
         self.assertFalse(gh.can_handle_url('https://notgithub.com/user'))
 
-        rd = self.RedditFetcher()
+        rd = RedditFetcher()
         self.assertTrue(rd.can_handle_url('https://reddit.com/user/test'))
         self.assertFalse(rd.can_handle_url('https://notreddit.com/user'))
 
     def test_github_username_extraction(self):
         """GitHubFetcher should extract usernames correctly."""
-        gh = self.GitHubFetcher()
+        gh = GitHubFetcher()
         self.assertEqual(gh.extract_username_from_url('https://github.com/torvalds'), 'torvalds')
         self.assertEqual(gh.extract_username_from_url('https://github.com/VictoKu1'), 'VictoKu1')
 
@@ -149,7 +138,7 @@ class TestSocialMediaFetchers(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        gh = self.GitHubFetcher()
+        gh = GitHubFetcher()
         data = gh.fetch_profile_data('https://github.com/torvalds')
 
         self.assertIsNotNone(data)
