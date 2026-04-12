@@ -14,6 +14,16 @@ from urllib.parse import urlparse, parse_qs
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from dotenv import load_dotenv
+
+# Optional dependency – imported at module level to avoid repeated per-call overhead.
+try:
+    import tweepy
+except ImportError:  # pragma: no cover
+    tweepy = None  # type: ignore[assignment]
+
+# Load environment variables from .env file if present
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -75,8 +85,18 @@ class BaseSocialMediaFetcher(ABC):
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (compatible; SocialNetworkAnalyzer/1.0)'
+        })
         return session
     
+    def _url_matches_domain(self, url: str, *domains: str) -> bool:
+        """Return True if the URL's netloc matches any of the given domains (or a subdomain)."""
+        netloc = urlparse(url).netloc.lower()
+        # Strip port if present
+        netloc = netloc.split(':')[0]
+        return any(netloc == d or netloc.endswith('.' + d) for d in domains)
+
     @abstractmethod
     def can_handle_url(self, url: str) -> bool:
         """Check if this fetcher can handle the given URL."""
@@ -135,7 +155,7 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             logger.error(f"Failed to initialize Twitter API: {e}")
     
     def can_handle_url(self, url: str) -> bool:
-        return 'twitter.com' in url or 'x.com' in url
+        return self._url_matches_domain(url, 'twitter.com', 'x.com')
     
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Twitter URL."""
@@ -152,14 +172,18 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
             
-            # Try API v2 first
-            if hasattr(self.api, 'get_user'):
-                user = self.api.get_user(username=username)
+            # Distinguish between API v2 (tweepy.Client) and v1.1 (tweepy.API)
+            if tweepy and isinstance(self.api, tweepy.Client):
+                user = self.api.get_user(
+                    username=username,
+                    user_fields=[
+                        'description', 'public_metrics', 'profile_image_url',
+                        'verified', 'location', 'url', 'created_at'
+                    ]
+                )
                 if user.data:
                     return self._parse_twitter_user(user.data, username)
-            
-            # Fallback to v1.1 API
-            if hasattr(self.api, 'get_user'):
+            elif tweepy and isinstance(self.api, tweepy.API):
                 user = self.api.get_user(screen_name=username)
                 return self._parse_twitter_user_v1(user, username)
                 
@@ -169,20 +193,21 @@ class TwitterFetcher(BaseSocialMediaFetcher):
     
     def _parse_twitter_user(self, user, username: str) -> SocialMediaData:
         """Parse Twitter API v2 user data."""
+        public_metrics = user.public_metrics or {}
         return SocialMediaData(
             platform="Twitter",
             username=username,
             display_name=user.name,
             bio=user.description or "",
             posts=[],  # Would need separate API call for tweets
-            followers_count=user.public_metrics.followers_count if hasattr(user, 'public_metrics') else None,
-            following_count=user.public_metrics.following_count if hasattr(user, 'public_metrics') else None,
+            followers_count=public_metrics.get('followers_count'),
+            following_count=public_metrics.get('following_count'),
             profile_picture=user.profile_image_url,
-            verified=user.verified,
+            verified=user.verified or False,
             join_date=user.created_at.isoformat() if user.created_at else None,
             location=user.location,
             website=user.url,
-            raw_data=user._json
+            raw_data={}
         )
     
     def _parse_twitter_user_v1(self, user, username: str) -> SocialMediaData:
@@ -200,7 +225,7 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             join_date=user.created_at.isoformat() if user.created_at else None,
             location=user.location,
             website=user.url,
-            raw_data=user._json
+            raw_data=user._json if hasattr(user, '_json') else {}
         )
     
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
@@ -279,7 +304,7 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
             logger.error(f"Failed to initialize LinkedIn API: {e}")
     
     def can_handle_url(self, url: str) -> bool:
-        return 'linkedin.com' in url
+        return self._url_matches_domain(url, 'linkedin.com')
     
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from LinkedIn URL."""
@@ -389,7 +414,7 @@ class InstagramFetcher(BaseSocialMediaFetcher):
             logger.error(f"Failed to initialize Instagram loader: {e}")
     
     def can_handle_url(self, url: str) -> bool:
-        return 'instagram.com' in url
+        return self._url_matches_domain(url, 'instagram.com')
     
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Instagram URL."""
@@ -520,7 +545,7 @@ class FacebookFetcher(BaseSocialMediaFetcher):
             logger.error(f"Failed to initialize Facebook API: {e}")
     
     def can_handle_url(self, url: str) -> bool:
-        return 'facebook.com' in url
+        return self._url_matches_domain(url, 'facebook.com')
     
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Facebook URL."""
@@ -635,7 +660,7 @@ class RedditFetcher(BaseSocialMediaFetcher):
             logger.error(f"Failed to initialize Reddit API: {e}")
     
     def can_handle_url(self, url: str) -> bool:
-        return 'reddit.com' in url
+        return self._url_matches_domain(url, 'reddit.com')
     
     def extract_username_from_url(self, url: str) -> str:
         """Extract username from Reddit URL."""
@@ -816,6 +841,63 @@ class GenericFetcher(BaseSocialMediaFetcher):
         
         return 'Unknown'
 
+class GitHubFetcher(BaseSocialMediaFetcher):
+    """GitHub API fetcher using the public REST API."""
+
+    def __init__(self):
+        super().__init__()
+        # Optional: authenticate to raise rate limit from 60 to 5000 req/hour
+        token = os.getenv('GITHUB_TOKEN')
+        if token:
+            self.session.headers.update({'Authorization': f'Bearer {token}'})
+        self.session.headers.update({'Accept': 'application/vnd.github.v3+json'})
+
+    def can_handle_url(self, url: str) -> bool:
+        return self._url_matches_domain(url, 'github.com')
+
+    def extract_username_from_url(self, url: str) -> str:
+        """Extract username from GitHub URL."""
+        path = urlparse(url).path
+        parts = path.strip('/').split('/')
+        return parts[0] if parts else ""
+
+    def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
+        """Fetch GitHub profile data via the public REST API."""
+        try:
+            self._handle_rate_limit()
+            username = self.extract_username_from_url(url)
+            if not username:
+                return None
+
+            api_url = f"https://api.github.com/users/{username}"
+            response = self.session.get(api_url, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                return SocialMediaData(
+                    platform="GitHub",
+                    username=username,
+                    display_name=data.get('name') or username,
+                    bio=data.get('bio') or "",
+                    posts=[],
+                    followers_count=data.get('followers'),
+                    following_count=data.get('following'),
+                    profile_picture=data.get('avatar_url'),
+                    verified=False,
+                    join_date=data.get('created_at'),
+                    location=data.get('location'),
+                    website=data.get('blog') or None,
+                    raw_data=data
+                )
+            else:
+                logger.warning(f"GitHub API returned {response.status_code} for {url}")
+
+        except Exception as e:
+            logger.error(f"GitHub API error: {e}")
+
+        return None
+
+
 class SocialMediaFetcherManager:
     """Manager class to handle multiple social media fetchers."""
     
@@ -826,6 +908,7 @@ class SocialMediaFetcherManager:
             InstagramFetcher(),
             FacebookFetcher(),
             RedditFetcher(),
+            GitHubFetcher(),
             GenericFetcher()
         ]
     

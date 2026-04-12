@@ -7,10 +7,24 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI, OpenAIError
+from dotenv import load_dotenv
 from social_media_fetchers import fetch_social_media_data, format_social_media_data
 
-# OpenAI API key (make sure this is set in your environment)
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# Load environment variables from .env file if present
+load_dotenv()
+
+# OpenAI client – initialized lazily so the module can be imported without
+# the API key being set (useful in tests and development environments).
+_client = None
+
+
+def _get_client() -> OpenAI:
+    """Return (and lazily create) the OpenAI client."""
+    global _client
+    if _client is None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 # List of social media domains and their names
 domains = {
@@ -194,7 +208,7 @@ and is a broad characterization rather than a definitive assessment of personali
 It should not be considered professional mental health advice.
     """
     try:
-        response = client.chat.completions.create(
+        response = _get_client().chat.completions.create(
             model="gpt-4o",  # Replace with your actual model if needed.
             messages=[
                 {"role": "system", "content": "You are a helpful AI ..."},
