@@ -207,7 +207,13 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             join_date=user.created_at.isoformat() if user.created_at else None,
             location=user.location,
             website=user.url,
-            raw_data={}
+            raw_data={
+                'name': user.name,
+                'description': user.description,
+                'location': user.location,
+                'url': user.url,
+                'public_metrics': dict(public_metrics),
+            }
         )
     
     def _parse_twitter_user_v1(self, user, username: str) -> SocialMediaData:
@@ -846,7 +852,9 @@ class GitHubFetcher(BaseSocialMediaFetcher):
 
     def __init__(self):
         super().__init__()
-        # Optional: authenticate to raise rate limit from 60 to 5000 req/hour
+        # Optional: provide a GITHUB_TOKEN to raise the rate limit from
+        # 60 requests/hour (unauthenticated) to 5,000 requests/hour (per
+        # authenticated user).
         token = os.getenv('GITHUB_TOKEN')
         if token:
             self.session.headers.update({'Authorization': f'Bearer {token}'})
