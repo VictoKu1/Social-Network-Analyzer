@@ -43,7 +43,30 @@ The new system provides:
 - **Features**: User data, recent posts, karma
 - **Rate Limits**: 60 requests per minute
 
-### 6. Generic Platforms
+### 6. GitHub
+- **API**: GitHub REST API v3 (public)
+- **Authentication**: Optional `GITHUB_TOKEN` for higher rate limits (5,000 req/hour vs 60 req/hour)
+- **Features**: Profile data, public repositories, follower/following counts, location, website
+- **Rate Limits**: 60 unauthenticated requests/hour; 5,000 with token
+
+### 7. YouTube
+- **API**: YouTube Data API v3
+- **Authentication**: `YOUTUBE_API_KEY` required; falls back to Open Graph scraping
+- **Features**: Channel info, subscriber count, description, country, join date
+- **Rate Limits**: 10,000 units/day (search = 100 units, channels = 1 unit)
+
+### 8. TikTok
+- **API**: None (no official public API)
+- **Method**: Open Graph meta-tag scraping
+- **Features**: Display name, bio, profile picture (best-effort — anti-scraping measures may limit results)
+
+### 9. Tumblr
+- **API**: Tumblr API v2 (public read-only endpoints)
+- **Authentication**: `TUMBLR_API_KEY` required; falls back to Open Graph scraping
+- **Features**: Blog title, description, recent posts, follower count, avatar
+- **Rate Limits**: 1,000 requests/hour (unauthenticated), 5,000/hour (with key)
+
+### 10. Generic Platforms
 - **Method**: Web scraping with BeautifulSoup
 - **Features**: Basic profile information
 - **Fallback**: Used when no specific API is available
@@ -96,6 +119,15 @@ FACEBOOK_APP_SECRET=your_facebook_app_secret_here
 REDDIT_CLIENT_ID=your_reddit_client_id_here
 REDDIT_CLIENT_SECRET=your_reddit_client_secret_here
 REDDIT_USER_AGENT=SocialNetworkAnalyzer/1.0
+
+# GitHub API (optional – raises rate limit from 60 to 5,000 requests/hour)
+GITHUB_TOKEN=your_github_personal_access_token_here
+
+# YouTube Data API v3
+YOUTUBE_API_KEY=your_youtube_api_key_here
+
+# Tumblr API
+TUMBLR_API_KEY=your_tumblr_consumer_key_here
 ```
 
 ### Platform-Specific Setup
@@ -137,6 +169,32 @@ REDDIT_USER_AGENT=SocialNetworkAnalyzer/1.0
 2. Create a new app (script type)
 3. Get your Client ID and Client Secret
 4. Set a User Agent string
+
+#### GitHub API Setup
+
+1. A Personal Access Token is **optional** but strongly recommended.
+2. Generate one at [GitHub Settings → Tokens](https://github.com/settings/tokens).
+3. Without a token the public API allows 60 requests/hour (unauthenticated); with a token you get up to 5,000 requests/hour.
+4. No special permissions are required to read public profiles.
+
+#### YouTube Data API v3 Setup
+
+1. Go to [Google Developers Console](https://console.developers.google.com/).
+2. Create (or select) a project and enable the **YouTube Data API v3**.
+3. Create an **API key** credential.
+4. Without the key, the fetcher falls back to Open Graph meta-tag scraping.
+
+#### TikTok Setup
+
+TikTok provides no publicly accessible API for third-party profile data.  
+The fetcher uses Open Graph meta-tag scraping, which is best-effort and may be
+affected by TikTok's anti-scraping measures.
+
+#### Tumblr API Setup
+
+1. Register an application at [Tumblr OAuth Apps](https://www.tumblr.com/oauth/apps).
+2. The **Consumer Key** shown on that page is your `TUMBLR_API_KEY`.
+3. Without the key, the fetcher falls back to Open Graph meta-tag scraping.
 
 ## Usage
 
