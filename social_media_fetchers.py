@@ -886,11 +886,11 @@ class GitHubFetcher(BaseSocialMediaFetcher):
         # 60 requests/hour (unauthenticated) to 5,000 requests/hour (per
         # authenticated user).
         token = os.getenv('GITHUB_TOKEN')
-        # Base rate limiter is per minute; map GitHub hourly limits conservatively.
-        self.rate_limiter = RateLimiter(calls_per_minute=83 if token else 1)
         if token:
             self.session.headers.update({'Authorization': f'Bearer {token}'})
         self.session.headers.update({'Accept': 'application/vnd.github.v3+json'})
+        # Base rate limiter is per minute; map GitHub hourly limits conservatively.
+        self.rate_limiter = RateLimiter(calls_per_minute=83 if token else 1)
 
     def can_handle_url(self, url: str) -> bool:
         return self._url_matches_domain(url, 'github.com')
