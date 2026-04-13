@@ -4,11 +4,11 @@ Handles API integration, OAuth, rate limiting, and data extraction for various p
 """
 # pylint: disable=too-many-instance-attributes,too-few-public-methods,unnecessary-pass
 # pylint: disable=import-outside-toplevel,broad-exception-caught,logging-fstring-interpolation
-# pylint: disable=protected-access
 
 import os
 import time
 import logging
+from datetime import date, datetime
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
@@ -216,20 +216,49 @@ class TwitterFetcher(BaseSocialMediaFetcher):
 
     def _parse_twitter_user_v1(self, user, username: str) -> SocialMediaData:
         """Parse Twitter API v1.1 user data."""
+        created_at = getattr(user, "created_at", None)
+        created_at_iso = None
+        if isinstance(created_at, (datetime, date)):
+            created_at_iso = created_at.isoformat()
+        elif isinstance(created_at, str):
+            created_at_iso = created_at
+
+        display_name = getattr(user, "name", "")
+        bio = getattr(user, "description", "")
+        followers_count = getattr(user, "followers_count", None)
+        following_count = getattr(user, "friends_count", None)
+        profile_picture = getattr(user, "profile_image_url", None)
+        verified = getattr(user, "verified", False)
+        location = getattr(user, "location", None)
+        website = getattr(user, "url", None)
+
+        raw_data = {
+            "id": getattr(user, "id", None),
+            "name": display_name or None,
+            "screen_name": getattr(user, "screen_name", username),
+            "description": bio or None,
+            "followers_count": followers_count,
+            "friends_count": following_count,
+            "profile_image_url": profile_picture,
+            "verified": verified,
+            "created_at": created_at_iso,
+            "location": location,
+            "url": website,
+        }
         return SocialMediaData(
             platform="Twitter",
             username=username,
-            display_name=user.name,
-            bio=user.description or "",
+            display_name=display_name,
+            bio=bio,
             posts=[],
-            followers_count=user.followers_count,
-            following_count=user.friends_count,
-            profile_picture=user.profile_image_url,
-            verified=user.verified,
-            join_date=user.created_at.isoformat() if user.created_at else None,
-            location=user.location,
-            website=user.url,
-            raw_data=user._json if hasattr(user, '_json') else {}
+            followers_count=followers_count,
+            following_count=following_count,
+            profile_picture=profile_picture,
+            verified=verified,
+            join_date=created_at_iso,
+            location=location,
+            website=website,
+            raw_data=raw_data
         )
 
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
