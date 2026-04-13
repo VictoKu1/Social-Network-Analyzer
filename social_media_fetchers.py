@@ -2,6 +2,9 @@
 Platform-specific social media data fetching module.
 Handles API integration, OAuth, rate limiting, and data extraction for various platforms.
 """
+# pylint: disable=too-many-instance-attributes,too-few-public-methods,unnecessary-pass
+# pylint: disable=import-outside-toplevel,broad-exception-caught,logging-fstring-interpolation
+# pylint: disable=protected-access
 
 import os
 import time

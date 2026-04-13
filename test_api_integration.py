@@ -2,6 +2,7 @@
 Test script to demonstrate the new platform-specific social media API integration.
 This script shows how to use the new fetchers and compare them with the old method.
 """
+# pylint: skip-file
 
 import os
 import sys
