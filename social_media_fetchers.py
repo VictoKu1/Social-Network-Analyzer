@@ -93,11 +93,12 @@ class BaseSocialMediaFetcher(ABC):
         return session
 
     def _url_matches_domain(self, url: str, *domains: str) -> bool:
-        """Return True if the URL's netloc matches any of the given domains (or a subdomain)."""
-        netloc = urlparse(url).netloc.lower()
-        # Strip port if present
-        netloc = netloc.split(':')[0]
-        return any(netloc == d or netloc.endswith('.' + d) for d in domains)
+        """Return True if the URL hostname matches any given domain (or subdomain)."""
+        hostname = urlparse(url).hostname
+        if hostname is None:
+            return False
+        hostname = hostname.lower()
+        return any(hostname == d or hostname.endswith('.' + d) for d in domains)
 
     @abstractmethod
     def can_handle_url(self, url: str) -> bool:
@@ -885,6 +886,8 @@ class GitHubFetcher(BaseSocialMediaFetcher):
         # 60 requests/hour (unauthenticated) to 5,000 requests/hour (per
         # authenticated user).
         token = os.getenv('GITHUB_TOKEN')
+        # Base rate limiter is per minute; map GitHub hourly limits conservatively.
+        self.rate_limiter = RateLimiter(calls_per_minute=83 if token else 1)
         if token:
             self.session.headers.update({'Authorization': f'Bearer {token}'})
         self.session.headers.update({'Accept': 'application/vnd.github.v3+json'})

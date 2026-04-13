@@ -190,7 +190,7 @@ and return it as a table:
 {', '.join(parameters)}
     """
 
-    disclamer = """
+    disclaimer = """
 
 **Disclaimer**: This analysis is based on limited publicly available information
 and is a broad characterization rather than a definitive assessment of personality.
@@ -205,7 +205,7 @@ It should not be considered professional mental health advice.
             ],
             # You can adjust max_tokens, temperature, etc. as needed.
         )
-        result = response.choices[0].message.content + disclamer
+        result = response.choices[0].message.content + disclaimer
         return result
     except OpenAIError as e:
         print(f"OpenAI API Error: {e}")

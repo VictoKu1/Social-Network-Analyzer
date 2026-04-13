@@ -104,6 +104,7 @@ class TestSocialMediaFetchers(unittest.TestCase):
         self.assertTrue(tw.can_handle_url('https://twitter.com/user'))
         self.assertTrue(tw.can_handle_url('https://x.com/user'))
         self.assertFalse(tw.can_handle_url('https://notx.com/user'))
+        self.assertFalse(tw.can_handle_url('https://twitter.com:pass@evil.com/user'))
 
         gh = GitHubFetcher()
         self.assertTrue(gh.can_handle_url('https://github.com/torvalds'))
@@ -146,6 +147,18 @@ class TestSocialMediaFetchers(unittest.TestCase):
         self.assertEqual(data.username, 'torvalds')
         self.assertEqual(data.display_name, 'Linus Torvalds')
         self.assertEqual(data.followers_count, 100000)
+
+    @patch.dict('os.environ', {}, clear=True)
+    def test_github_fetcher_rate_limit_without_token(self):
+        """GitHubFetcher should use conservative unauthenticated rate limits."""
+        gh = GitHubFetcher()
+        self.assertEqual(gh.rate_limiter.calls_per_minute, 1)
+
+    @patch.dict('os.environ', {'GITHUB_TOKEN': 'test-token'}, clear=True)
+    def test_github_fetcher_rate_limit_with_token(self):
+        """GitHubFetcher should use higher authenticated rate limits."""
+        gh = GitHubFetcher()
+        self.assertEqual(gh.rate_limiter.calls_per_minute, 83)
 
 
 if __name__ == "__main__":
