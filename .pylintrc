@@ -1,0 +1,24 @@
+[MESSAGES CONTROL]
+# import-error: third-party packages (tweepy, praw, flask, openai, etc.) are
+#   installed via requirements.txt at runtime; static analysis environments
+#   may not have them all present.
+# broad-exception-caught: intentional in network fallback fetch methods where
+#   any error (connection, timeout, parsing, etc.) should be handled gracefully.
+# import-outside-toplevel: intentional for optional heavy dependencies
+#   (tweepy, praw, instaloader, etc.) that are imported only when available.
+# protected-access: needed to access Tweepy's _json attribute and in tests
+#   that directly exercise private fallback methods.
+# too-many-instance-attributes: SocialMediaData dataclass has 13 fields by design.
+# too-few-public-methods: RateLimiter is a single-purpose utility class.
+# too-many-lines: social_media_fetchers.py is large but tightly cohesive.
+disable =
+    import-error,
+    broad-exception-caught,
+    import-outside-toplevel,
+    protected-access,
+    too-many-instance-attributes,
+    too-few-public-methods,
+    too-many-lines
+
+[FORMAT]
+max-line-length = 120

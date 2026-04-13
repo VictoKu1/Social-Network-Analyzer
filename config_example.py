@@ -36,6 +36,19 @@ REDDIT_CLIENT_ID = "your_reddit_client_id_here"
 REDDIT_CLIENT_SECRET = "your_reddit_client_secret_here"
 REDDIT_USER_AGENT = "SocialNetworkAnalyzer/1.0"
 
+# GitHub API Configuration
+# Optional: get a Personal Access Token from https://github.com/settings/tokens
+# Without a token the public API allows 60 requests/hour; with a token up to 5,000/hour.
+GITHUB_TOKEN = "your_github_token_here"
+
+# YouTube Data API v3 Configuration
+# Get an API key from https://console.developers.google.com/
+YOUTUBE_API_KEY = "your_youtube_api_key_here"
+
+# Tumblr API Configuration
+# Register an application at https://www.tumblr.com/oauth/apps to get an API key.
+TUMBLR_API_KEY = "your_tumblr_api_key_here"
+
 # Optional: Selenium Configuration for web scraping fallback
 # If you want to use Selenium for JavaScript-rendered content
 SELENIUM_HEADLESS = True
@@ -74,10 +87,27 @@ INSTRUCTIONS FOR SETTING UP API CREDENTIALS:
    - Get your Client ID and Client Secret
    - Set a User Agent string
 
+6. GITHUB API:
+   - A Personal Access Token is optional but recommended for higher rate limits.
+   - Generate one at https://github.com/settings/tokens
+   - Without a token the public API allows 60 unauthenticated requests per hour;
+     with a token you get up to 5,000 requests per hour.
+
+7. YOUTUBE DATA API v3:
+   - Go to https://console.developers.google.com/
+   - Create a project and enable the "YouTube Data API v3"
+   - Create an API key credential
+   - Without the key the fetcher falls back to Open Graph meta-tag scraping.
+
+8. TUMBLR API:
+   - Register an app at https://www.tumblr.com/oauth/apps to receive a Consumer Key
+     (this is your API key for read-only v2 endpoints).
+   - Without the key the fetcher falls back to Open Graph meta-tag scraping.
+
 SECURITY NOTES:
 - Never commit your actual API keys to version control
 - Use environment variables or a secure configuration management system
 - Consider using a secrets manager for production deployments
 - Regularly rotate your API keys
 - Monitor your API usage to avoid rate limits
-""" 
+"""
