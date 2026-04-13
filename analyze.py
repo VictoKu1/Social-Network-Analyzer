@@ -5,10 +5,16 @@ This version uses platform-specific API integration for better data fetching.
 
 import os
 from openai import OpenAI, OpenAIError
+from dotenv import load_dotenv
 from social_media_fetchers import fetch_social_media_data, format_social_media_data
 
-# OpenAI API key (make sure this is set in your environment)
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# Load environment variables from .env file if present
+load_dotenv()
+
+
+def _get_client() -> OpenAI:
+    """Create and return an OpenAI client using the current environment."""
+    return OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # List of social media domains and their names
 domains = {
@@ -184,14 +190,14 @@ and return it as a table:
 {', '.join(parameters)}
     """
 
-    disclamer = """
+    disclaimer = """
 
 **Disclaimer**: This analysis is based on limited publicly available information
 and is a broad characterization rather than a definitive assessment of personality.
 It should not be considered professional mental health advice.
     """
     try:
-        response = client.chat.completions.create(
+        response = _get_client().chat.completions.create(
             model="gpt-4o",  # Replace with your actual model if needed.
             messages=[
                 {"role": "system", "content": "You are a helpful AI ..."},
@@ -199,7 +205,7 @@ It should not be considered professional mental health advice.
             ],
             # You can adjust max_tokens, temperature, etc. as needed.
         )
-        result = response.choices[0].message.content + disclamer
+        result = response.choices[0].message.content + disclaimer
         return result
     except OpenAIError as e:
         print(f"OpenAI API Error: {e}")
