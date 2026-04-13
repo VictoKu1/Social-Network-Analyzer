@@ -208,7 +208,6 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             # Simple web scraping without Selenium for now
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 # Try to extract basic info
@@ -324,7 +323,6 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
         try:
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ""
@@ -449,7 +447,6 @@ class InstagramFetcher(BaseSocialMediaFetcher):
         try:
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ""
@@ -567,7 +564,6 @@ class FacebookFetcher(BaseSocialMediaFetcher):
         try:
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ""
@@ -697,7 +693,6 @@ class RedditFetcher(BaseSocialMediaFetcher):
         try:
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ""
@@ -911,7 +906,6 @@ class YouTubeFetcher(BaseSocialMediaFetcher):
         try:
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ''
@@ -980,7 +974,6 @@ class TikTokFetcher(BaseSocialMediaFetcher):
             }
             response = self.session.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ''
@@ -1122,7 +1115,6 @@ class TumblrFetcher(BaseSocialMediaFetcher):
         try:
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 display_name = ''
@@ -1176,7 +1168,6 @@ class GenericFetcher(BaseSocialMediaFetcher):
 
             response = self.session.get(url, timeout=10)
             if response.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 # Try to extract basic information

@@ -4,8 +4,6 @@ This version uses platform-specific API integration for better data fetching.
 """
 
 import os
-import requests
-from bs4 import BeautifulSoup
 from openai import OpenAI, OpenAIError
 from social_media_fetchers import fetch_social_media_data, format_social_media_data
 
@@ -137,8 +135,7 @@ def fetch_social_media_content(url: str) -> str:
     data = fetch_social_media_data(url)
     if data:
         return format_social_media_data(data)
-    else:
-        return f"Failed to fetch content from {url}"
+    return f"Failed to fetch content from {url}"
 
 def analyze_personality(links_info, personal_description):
     """

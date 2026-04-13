@@ -4,8 +4,7 @@ This script shows how to use the new fetchers and compare them with the old meth
 """
 
 import os
-import sys
-from social_media_fetchers import fetch_social_media_data, format_social_media_data, SocialMediaFetcherManager
+from social_media_fetchers import fetch_social_media_data, SocialMediaFetcherManager
 from analyze import fetch_social_media_content
 
 def test_platform_specific_fetching():
@@ -23,8 +22,6 @@ def test_platform_specific_fetching():
         "https://github.com/torvalds",
         "https://youtube.com/@PewDiePie"
     ]
-
-    manager = SocialMediaFetcherManager()
 
     for url in test_urls:
         print(f"Testing URL: {url}")

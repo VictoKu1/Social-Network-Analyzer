@@ -78,10 +78,12 @@ class TestGitHubFetcher(unittest.TestCase):
         self.fetcher = GitHubFetcher()
 
     def test_can_handle_url(self):
+        """Fetcher accepts github.com URLs and rejects others."""
         self.assertTrue(self.fetcher.can_handle_url("https://github.com/torvalds"))
         self.assertFalse(self.fetcher.can_handle_url("https://twitter.com/user"))
 
     def test_extract_username_from_url(self):
+        """Extracts the first path segment as the username."""
         self.assertEqual(
             self.fetcher.extract_username_from_url("https://github.com/torvalds"),
             "torvalds",
@@ -153,10 +155,12 @@ class TestYouTubeFetcher(unittest.TestCase):
         self.fetcher = YouTubeFetcher()
 
     def test_can_handle_url(self):
+        """Fetcher accepts youtube.com URLs and rejects others."""
         self.assertTrue(self.fetcher.can_handle_url("https://youtube.com/@PewDiePie"))
         self.assertFalse(self.fetcher.can_handle_url("https://twitter.com/user"))
 
     def test_extract_username_from_url(self):
+        """Handles @handle, /user/, and /c/ URL patterns."""
         self.assertEqual(
             self.fetcher.extract_username_from_url("https://youtube.com/@PewDiePie"),
             "PewDiePie",
@@ -199,10 +203,12 @@ class TestTikTokFetcher(unittest.TestCase):
         self.fetcher = TikTokFetcher()
 
     def test_can_handle_url(self):
+        """Fetcher accepts tiktok.com URLs and rejects others."""
         self.assertTrue(self.fetcher.can_handle_url("https://tiktok.com/@charlidamelio"))
         self.assertFalse(self.fetcher.can_handle_url("https://instagram.com/user"))
 
     def test_extract_username_from_url(self):
+        """Strips the @ prefix to return just the username."""
         self.assertEqual(
             self.fetcher.extract_username_from_url("https://tiktok.com/@charlidamelio"),
             "charlidamelio",
@@ -239,17 +245,20 @@ class TestTumblrFetcher(unittest.TestCase):
         self.fetcher = TumblrFetcher()
 
     def test_can_handle_url(self):
+        """Fetcher accepts tumblr.com URLs and rejects others."""
         self.assertTrue(self.fetcher.can_handle_url("https://staff.tumblr.com"))
         self.assertTrue(self.fetcher.can_handle_url("https://www.tumblr.com/staff"))
         self.assertFalse(self.fetcher.can_handle_url("https://twitter.com/user"))
 
     def test_extract_username_subdomain(self):
+        """Extracts blog name from <blog>.tumblr.com subdomain pattern."""
         self.assertEqual(
             self.fetcher.extract_username_from_url("https://staff.tumblr.com"),
             "staff",
         )
 
     def test_extract_username_path(self):
+        """Extracts blog name from www.tumblr.com/<blog> path pattern."""
         self.assertEqual(
             self.fetcher.extract_username_from_url("https://www.tumblr.com/staff"),
             "staff",

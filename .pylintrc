@@ -8,18 +8,17 @@
 #   (tweepy, praw, instaloader, etc.) that are imported only when available.
 # protected-access: needed to access Tweepy's _json attribute and in tests
 #   that directly exercise private fallback methods.
+# too-many-instance-attributes: SocialMediaData dataclass has 13 fields by design.
+# too-few-public-methods: RateLimiter is a single-purpose utility class.
+# too-many-lines: social_media_fetchers.py is large but tightly cohesive.
 disable =
     import-error,
     broad-exception-caught,
     import-outside-toplevel,
-    protected-access
+    protected-access,
+    too-many-instance-attributes,
+    too-few-public-methods,
+    too-many-lines
 
 [FORMAT]
 max-line-length = 120
-
-[DESIGN]
-# SocialMediaData is a dataclass with 13 fields; RateLimiter is a utility
-# class with a single public method by design.
-max-module-lines = 1500
-max-instance-attributes = 15
-min-public-methods = 1
