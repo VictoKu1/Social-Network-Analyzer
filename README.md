@@ -1,5 +1,7 @@
 # Social Network Analyzer
 
+> Recruiter-oriented project summary: [RECRUITER_BRIEF.md](RECRUITER_BRIEF.md)
+
 [![Pylint](https://github.com/VictoKu1/Social-Network-Analyzer/actions/workflows/pylint.yml/badge.svg)](https://github.com/VictoKu1/Social-Network-Analyzer/actions/workflows/pylint.yml)
 
 This repository contains a **Flask-based web application** that lets users:
