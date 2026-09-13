@@ -8,6 +8,7 @@ import os
 import sys
 from social_media_fetchers import fetch_social_media_data, format_social_media_data, SocialMediaFetcherManager
 from analyze import fetch_social_media_content
+from security_limits import SecurityError
 
 def test_platform_specific_fetching():
     """Test the new platform-specific fetching system."""
@@ -33,7 +34,11 @@ def test_platform_specific_fetching():
         
         # Test new platform-specific fetcher
         print("Using NEW platform-specific fetcher:")
-        data = fetch_social_media_data(url)
+        try:
+            data = fetch_social_media_data(url)
+        except SecurityError as error:
+            print(f"Request rejected safely: {error.code}")
+            continue
         
         if data:
             print(f"✅ Success! Platform: {data.platform}")
@@ -74,8 +79,13 @@ def test_rate_limiting():
     print("Testing rate limiter with 5 calls per minute...")
     for i in range(7):
         print(f"Call {i+1}: ", end="")
-        limiter.wait_if_needed()
-        print("✅ Proceeded")
+        try:
+            limiter.wait_if_needed()
+            assert i < 5, "Quota should reject excess calls"
+            print("✅ Proceeded")
+        except SecurityError as error:
+            assert i >= 5 and error.status == 429
+            print("✅ Excess call rejected immediately")
     
     print("\nRate limiting test completed!")
 
@@ -93,7 +103,11 @@ def test_error_handling():
     
     for url in invalid_urls:
         print(f"Testing invalid URL: {url}")
-        data = fetch_social_media_data(url)
+        try:
+            data = fetch_social_media_data(url)
+        except SecurityError as error:
+            print(f"✅ Request rejected safely: {error.code}\n")
+            continue
         
         if data:
             print(f"✅ Unexpected success: {data.platform}")

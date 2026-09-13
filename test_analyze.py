@@ -43,6 +43,7 @@ class TestAnalyze(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertIsNone(platform)
 
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key", "LLM_PROVIDER": "openai"})
     @patch("analyze.fetch_social_media_data")
     @patch("analyze._get_client")
     def test_analyze_personality(self, mock_get_client, mock_fetch):
@@ -77,6 +78,7 @@ class TestAnalyze(unittest.TestCase):
         # Verify the OpenAI API was called once
         mock_client.chat.completions.create.assert_called_once()
 
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key", "LLM_PROVIDER": "openai"})
     def test_analyze_personality_empty(self):
         """
         Test analyze_personality with empty input.
@@ -121,7 +123,7 @@ class TestSocialMediaFetchers(unittest.TestCase):
         self.assertEqual(gh.extract_username_from_url('https://github.com/torvalds'), 'torvalds')
         self.assertEqual(gh.extract_username_from_url('https://github.com/VictoKu1'), 'VictoKu1')
 
-    @patch('social_media_fetchers.requests.Session.get')
+    @patch('social_media_fetchers.fetch_public_url')
     def test_github_fetcher_success(self, mock_get):
         """GitHubFetcher should parse a successful API response."""
         mock_response = MagicMock()

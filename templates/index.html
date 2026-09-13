@@ -1,75 +1,102 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Social Network Analyzer</title>
-
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
-
-  <!-- Main CSS -->
-  <!--  If using Flask, the url_for('static', filename='css/style.css') approach is typical:
-         <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-         But here we’ll just show a static path example.  -->
   <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="/static/js/vendor/marked-17.0.5.umd.js" defer></script>
+  <script src="/static/js/analysis-renderer.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
 </head>
-
 <body>
-  <div class="page-wrapper">
+  <main class="page-wrapper">
     <div class="container">
-      <h1>Social Network Analyzer</h1>
-
-      <!-- STEP A: Select Number of Links -->
-      <div id="stepA">
-        <label for="numLinks">How many social network links do you want to provide?</label><br /><br />
-        <select id="numLinks" class="styled-select">
-          <option value="1">1</option>
-          <option value="2" selected>2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-        </select>
-        <button class="button" onclick="generateLinkFields()">Next</button>
-      </div>
-
-      <!-- STEP B: Input links, Validate each link -->
-      <div id="stepB">
-        <h3>Enter your social network links</h3>
+      <header class="page-header">
+        <h1>Social Network Analyzer</h1>
+        <p>Add social profiles and a short description to begin.</p>
+      </header>
+      <nav class="progress" aria-label="Analysis steps">
+        <p id="stepStatus" class="step-status" role="status" aria-live="polite">Step 1 of 3</p>
+        <ol class="step-list">
+          <li data-step="1" data-state="current" aria-current="step"><span class="step-number" aria-hidden="true">1</span>Setup</li>
+          <li data-step="2" data-state="upcoming"><span class="step-number" aria-hidden="true">2</span>Profiles</li>
+          <li data-step="3" data-state="upcoming"><span class="step-number" aria-hidden="true">3</span>Description</li>
+        </ol>
+      </nav>
+      <form id="stepA" class="step-form" aria-labelledby="stepATitle" novalidate>
+        <h2 id="stepATitle" tabindex="-1">Set up your analysis</h2>
+        <div class="field">
+          <label for="llmProvider" class="field-label">Analysis engine</label>
+          <select id="llmProvider" class="form-control" aria-describedby="providerStatus" disabled>
+            <option value="openai">OpenAI</option>
+            <option value="ollama">Ollama (local)</option>
+          </select>
+        </div>
+        <div id="ollamaSettings" class="field" hidden>
+          <label for="ollamaModel" class="field-label">Installed Ollama model</label>
+          <div class="control-row">
+            <select id="ollamaModel" class="form-control" aria-describedby="ollamaHint providerStatus" disabled>
+              <option value="">Choose an installed model</option>
+            </select>
+            <button id="refreshModels" class="button button-secondary" type="button">Refresh models</button>
+          </div>
+          <p id="ollamaHint" class="field-hint">Ollama runs on the machine hosting this app. Profile content and your description are sent to that local model.</p>
+        </div>
+        <div class="provider-readiness">
+          <p id="providerStatus" class="field-message" role="status" aria-live="polite">Checking analysis configuration…</p>
+          <button id="checkConfiguration" class="button button-secondary" type="button" disabled>Check again</button>
+        </div>
+        <div class="field">
+          <label for="numLinks" class="field-label">Number of profiles</label>
+          <select id="numLinks" class="form-control" aria-describedby="numLinksHint">
+            <option value="1">1 profile</option>
+            <option value="2" selected>2 profiles</option>
+            <option value="3">3 profiles</option>
+            <option value="4">4 profiles</option>
+            <option value="5">5 profiles</option>
+          </select>
+          <p id="numLinksHint" class="field-hint">You can add up to 5 social profile links.</p>
+        </div>
+        <div class="form-actions">
+          <button id="setupContinue" class="button" type="submit" disabled>Continue</button>
+        </div>
+      </form>
+      <form id="stepB" class="step-form" aria-labelledby="stepBTitle" novalidate hidden>
+        <h2 id="stepBTitle" tabindex="-1">Add social profile links</h2>
+        <p class="section-hint">Enter the full URL for each profile.</p>
         <div id="linksContainer"></div>
-        <button class="button" onclick="validateAllLinks()">Validate Links</button>
-        <div id="validationResults"></div>
-        <button id="continueBtn" class="button" onclick="showStepC()">Continue</button>
+        <div id="validationResults" class="feedback" role="status" aria-live="polite" hidden></div>
+        <div class="form-actions">
+          <button id="linksBack" class="button button-secondary" type="button">Back</button>
+          <button id="continueBtn" class="button" type="submit">Continue</button>
+        </div>
+      </form>
+      <form id="stepC" class="step-form" aria-labelledby="stepCTitle" novalidate hidden>
+        <h2 id="stepCTitle" tabindex="-1">Add a personal description</h2>
+        <p id="providerSummary" class="section-hint"></p>
+        <div class="field">
+          <label for="personalDescription" class="field-label">Personal description</label>
+          <textarea id="personalDescription" class="form-control" placeholder="Briefly describe the person" aria-describedby="descriptionHint descriptionError"></textarea>
+          <p id="descriptionHint" class="field-hint">Include relevant background or interests to give the analysis context.</p>
+          <p id="descriptionError" class="field-message" data-state="error" role="alert" hidden></p>
+        </div>
+        <div class="form-actions">
+          <button id="descriptionBack" class="button button-secondary" type="button">Back</button>
+          <button id="analyzeBtn" class="button" type="submit" disabled>Analyze profiles</button>
+        </div>
+      </form>
+      <div id="analysisStatus" class="feedback" role="status" aria-live="polite" hidden>
+        <span id="spinner" class="spinner" aria-hidden="true"></span>
+        <span id="analysisStatusText"></span>
       </div>
-
-      <!-- STEP C: Personal Description + Analyze -->
-      <div id="stepC">
-        <h3>Personal Description</h3>
-        <textarea id="personalDescription" placeholder="Describe the person briefly"></textarea>
-        <br />
-        <button class="button" onclick="analyzeAll()">Analyze</button>
-      </div>
-
-      <!-- Spinner shown during analysis -->
-      <div id="spinner" class="spinner"></div>
-
-      <!-- Final Output -->
-      <div id="analysisResult">
-        <h3>Analysis Result</h3>
-        <!-- This is where the rendered Markdown (or text) will appear -->
-        <div id="analysisText" style="text-align: left; margin-top: 1em;"></div>
-      </div>
-      <!-- Download as PDF button -->
-
+      <div id="analysisError" class="feedback" data-state="error" role="alert" hidden></div>
+      <section id="analysisResult" class="analysis-result" aria-labelledby="resultTitle" hidden>
+        <h2 id="resultTitle" tabindex="-1">Analysis result</h2>
+        <div id="analysisText" class="analysis-text"></div>
+      </section>
     </div>
-  </div>
-
-  <!-- Marked.js for Markdown rendering (only needed if your output is Markdown) -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-  <!-- Main JS -->
-  <!-- If using Flask, again you'd typically use `{{ url_for('static', filename='js/app.js') }}` -->
-  <script src="/static/js/app.js"></script>
+  </main>
 </body>
-
 </html>

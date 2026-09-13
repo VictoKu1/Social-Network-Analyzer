@@ -8,6 +8,8 @@ Handles API integration, OAuth, rate limiting, and data extraction for various p
 import os
 import time
 import logging
+import re
+import threading
 from datetime import date, datetime
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
@@ -17,6 +19,9 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from dotenv import load_dotenv
+from safe_fetch import fetch_public_url, parse_profile_url
+from security_limits import SecurityError
+from request_security import shared_access_enabled
 
 # Optional dependency – imported at module level to avoid repeated per-call overhead.
 try:
@@ -54,20 +59,17 @@ class RateLimiter:
     def __init__(self, calls_per_minute: int = 60):
         self.calls_per_minute = calls_per_minute
         self.calls = []
+        self.lock = threading.Lock()
 
     def wait_if_needed(self):
-        """Wait if rate limit would be exceeded."""
-        now = time.time()
-        # Remove calls older than 1 minute
-        self.calls = [call_time for call_time in self.calls if now - call_time < 60]
+        """Reject excess calls without tying up a sleeping request worker."""
+        with self.lock:
+            now = time.monotonic()
+            self.calls = [called for called in self.calls if now - called < 60]
+            if len(self.calls) >= self.calls_per_minute:
+                raise SecurityError("profile_rate_limit", "Profile request limit reached. Try again shortly.", 429)
+            self.calls.append(now)
 
-        if len(self.calls) >= self.calls_per_minute:
-            sleep_time = 60 - (now - self.calls[0])
-            if sleep_time > 0:
-                logger.info(f"Rate limit reached, waiting {sleep_time:.2f} seconds")
-                time.sleep(sleep_time)
-
-        self.calls.append(now)
 
 class BaseSocialMediaFetcher(ABC):
     """Abstract base class for social media fetchers."""
@@ -79,6 +81,7 @@ class BaseSocialMediaFetcher(ABC):
     def _create_session(self) -> requests.Session:
         """Create a requests session with retry logic."""
         session = requests.Session()
+        session.trust_env = False
         retry_strategy = Retry(
             total=3,
             backoff_factor=1,
@@ -140,6 +143,8 @@ class TwitterFetcher(BaseSocialMediaFetcher):
             access_token = os.getenv('TWITTER_ACCESS_TOKEN')
             access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 
+            if shared_access_enabled():
+                return
             if bearer_token:
                 self.api = tweepy.Client(bearer_token=bearer_token)
             elif all([api_key, api_secret, access_token, access_token_secret]):
@@ -148,6 +153,8 @@ class TwitterFetcher(BaseSocialMediaFetcher):
                 self.api = tweepy.API(auth)
             else:
                 logger.warning("Twitter API credentials not found")
+        except SecurityError:
+            raise
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to initialize Twitter API: %s", e)
 
@@ -162,7 +169,8 @@ class TwitterFetcher(BaseSocialMediaFetcher):
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Twitter profile data."""
-        if not self.api:
+        url = parse_profile_url(url)[0]
+        if shared_access_enabled() or not self.api:
             return self._fallback_fetch(url)
 
         try:
@@ -184,6 +192,8 @@ class TwitterFetcher(BaseSocialMediaFetcher):
                 user = self.api.get_user(screen_name=username)
                 return self._parse_twitter_user_v1(user, username)
 
+        except SecurityError:
+            raise
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Twitter API error: %s", e)
             return self._fallback_fetch(url)
@@ -266,7 +276,7 @@ class TwitterFetcher(BaseSocialMediaFetcher):
         """Fallback to web scraping when API is not available."""
         try:
             # Simple web scraping without Selenium for now
-            response = self.session.get(url, timeout=10)
+            response = fetch_public_url(url)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -307,6 +317,8 @@ class TwitterFetcher(BaseSocialMediaFetcher):
                     raw_data={}
                 )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Twitter fallback fetch error: {e}")
 
@@ -326,7 +338,7 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
             email = os.getenv('LINKEDIN_EMAIL')
             password = os.getenv('LINKEDIN_PASSWORD')
 
-            if email and password:
+            if email and password and not shared_access_enabled():
                 try:
                     from linkedin_api import Linkedin
                     self.api = Linkedin(email, password)
@@ -334,6 +346,8 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
                     logger.warning("linkedin-api not installed, LinkedIn API unavailable")
             else:
                 logger.warning("LinkedIn credentials not found")
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Failed to initialize LinkedIn API: {e}")
 
@@ -350,7 +364,8 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch LinkedIn profile data."""
-        if not self.api:
+        url = parse_profile_url(url)[0]
+        if shared_access_enabled() or not self.api:
             return self._fallback_fetch(url)
 
         try:
@@ -375,6 +390,8 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
                 raw_data=profile
             )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"LinkedIn API error: {e}")
             return self._fallback_fetch(url)
@@ -382,7 +399,7 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
-            response = self.session.get(url, timeout=10)
+            response = fetch_public_url(url)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -415,6 +432,8 @@ class LinkedInFetcher(BaseSocialMediaFetcher):
                     raw_data={}
                 )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"LinkedIn fallback fetch error: {e}")
 
@@ -438,12 +457,14 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                 import instaloader
                 self.loader = instaloader.Instaloader()
 
-                if username and password:
+                if username and password and not shared_access_enabled():
                     self.loader.login(username, password)
                 else:
                     logger.warning("Instagram credentials not found, using public access")
             except ImportError:
                 logger.warning("instaloader not installed, Instagram API unavailable")
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Failed to initialize Instagram loader: {e}")
 
@@ -458,7 +479,8 @@ class InstagramFetcher(BaseSocialMediaFetcher):
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Instagram profile data."""
-        if not self.loader:
+        url = parse_profile_url(url)[0]
+        if shared_access_enabled() or not self.loader:
             return self._fallback_fetch(url)
 
         try:
@@ -467,6 +489,9 @@ class InstagramFetcher(BaseSocialMediaFetcher):
 
             import instaloader
             profile = instaloader.Profile.from_username(self.loader.context, username)
+
+            if profile.is_private:
+                raise SecurityError("private_profile", "Only public profiles can be analyzed.", 403)
 
             # Get recent posts
             posts = []
@@ -500,6 +525,8 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                 }
             )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Instagram API error: {e}")
             return self._fallback_fetch(url)
@@ -507,7 +534,7 @@ class InstagramFetcher(BaseSocialMediaFetcher):
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
-            response = self.session.get(url, timeout=10)
+            response = fetch_public_url(url)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -540,6 +567,8 @@ class InstagramFetcher(BaseSocialMediaFetcher):
                     raw_data={}
                 )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Instagram fallback fetch error: {e}")
 
@@ -560,6 +589,8 @@ class FacebookFetcher(BaseSocialMediaFetcher):
             app_id = os.getenv('FACEBOOK_APP_ID')
             app_secret = os.getenv('FACEBOOK_APP_SECRET')
 
+            if shared_access_enabled():
+                return
             if access_token:
                 try:
                     import facebook
@@ -575,6 +606,8 @@ class FacebookFetcher(BaseSocialMediaFetcher):
                     logger.warning("facebook-sdk not installed, Facebook API unavailable")
             else:
                 logger.warning("Facebook API credentials not found")
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Failed to initialize Facebook API: {e}")
 
@@ -589,7 +622,8 @@ class FacebookFetcher(BaseSocialMediaFetcher):
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Facebook profile data."""
-        if not self.graph:
+        url = parse_profile_url(url)[0]
+        if shared_access_enabled() or not self.graph:
             return self._fallback_fetch(url)
 
         try:
@@ -620,6 +654,8 @@ class FacebookFetcher(BaseSocialMediaFetcher):
                 raw_data=profile
             )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Facebook API error: {e}")
             return self._fallback_fetch(url)
@@ -627,7 +663,7 @@ class FacebookFetcher(BaseSocialMediaFetcher):
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
-            response = self.session.get(url, timeout=10)
+            response = fetch_public_url(url)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -660,6 +696,8 @@ class FacebookFetcher(BaseSocialMediaFetcher):
                     raw_data={}
                 )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Facebook fallback fetch error: {e}")
 
@@ -675,6 +713,8 @@ class RedditFetcher(BaseSocialMediaFetcher):
 
     def _initialize_api(self):
         """Initialize Reddit API client."""
+        if shared_access_enabled():
+            return
         try:
             client_id = os.getenv('REDDIT_CLIENT_ID')
             client_secret = os.getenv('REDDIT_CLIENT_SECRET')
@@ -692,6 +732,8 @@ class RedditFetcher(BaseSocialMediaFetcher):
                     logger.warning("praw not installed, Reddit API unavailable")
             else:
                 logger.warning("Reddit API credentials not found")
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Failed to initialize Reddit API: {e}")
 
@@ -709,7 +751,8 @@ class RedditFetcher(BaseSocialMediaFetcher):
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch Reddit profile data."""
-        if not self.reddit:
+        url = parse_profile_url(url)[0]
+        if shared_access_enabled() or not self.reddit:
             return self._fallback_fetch(url)
 
         try:
@@ -750,6 +793,8 @@ class RedditFetcher(BaseSocialMediaFetcher):
                 }
             )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Reddit API error: {e}")
             return self._fallback_fetch(url)
@@ -757,7 +802,7 @@ class RedditFetcher(BaseSocialMediaFetcher):
     def _fallback_fetch(self, url: str) -> Optional[SocialMediaData]:
         """Fallback to web scraping."""
         try:
-            response = self.session.get(url, timeout=10)
+            response = fetch_public_url(url)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -785,6 +830,8 @@ class RedditFetcher(BaseSocialMediaFetcher):
                     raw_data={}
                 )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Reddit fallback fetch error: {e}")
 
@@ -806,7 +853,7 @@ class GenericFetcher(BaseSocialMediaFetcher):
         try:
             self._handle_rate_limit()
 
-            response = self.session.get(url, timeout=10)
+            response = fetch_public_url(url)
             if response.status_code == 200:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -849,6 +896,8 @@ class GenericFetcher(BaseSocialMediaFetcher):
                     raw_data={}
                 )
 
+        except SecurityError:
+            raise
         except Exception as e:
             logger.error(f"Generic fetch error: {e}")
 
@@ -886,6 +935,7 @@ class GitHubFetcher(BaseSocialMediaFetcher):
         # 60 requests/hour (unauthenticated) to 5,000 requests/hour (per
         # authenticated user).
         token = os.getenv('GITHUB_TOKEN')
+        self.token = token
         if token:
             self.session.headers.update({'Authorization': f'Bearer {token}'})
         self.session.headers.update({'Accept': 'application/vnd.github.v3+json'})
@@ -904,14 +954,15 @@ class GitHubFetcher(BaseSocialMediaFetcher):
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch GitHub profile data via the public REST API."""
+        url = parse_profile_url(url)[0]
         try:
             self._handle_rate_limit()
             username = self.extract_username_from_url(url)
-            if not username:
-                return None
+            if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}", username):
+                raise SecurityError("invalid_url", "Use a valid GitHub profile username.")
 
             api_url = f"https://api.github.com/users/{username}"
-            response = self.session.get(api_url, timeout=10)
+            response = fetch_public_url(api_url, token=self.token, json_response=True)
 
             if response.status_code == 200:
                 data = response.json()
@@ -932,6 +983,8 @@ class GitHubFetcher(BaseSocialMediaFetcher):
                 )
             logger.warning("GitHub API returned %s for %s", response.status_code, url)
 
+        except SecurityError:
+            raise
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("GitHub API error: %s", e)
 
@@ -954,6 +1007,7 @@ class SocialMediaFetcherManager:
 
     def fetch_profile_data(self, url: str) -> Optional[SocialMediaData]:
         """Fetch profile data using the appropriate fetcher."""
+        url = parse_profile_url(url)[0]
         for fetcher in self.fetchers:
             if fetcher.can_handle_url(url):
                 logger.info(f"Using {fetcher.__class__.__name__} for {url}")

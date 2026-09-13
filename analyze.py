@@ -1,49 +1,30 @@
 """
-Module for analyzing social media links using OpenAI API.
+Module for analyzing social media links using OpenAI or local Ollama.
 This version uses platform-specific API integration for better data fetching.
 """
 
-import os
-from openai import OpenAI, OpenAIError
+from openai import OpenAI, OpenAIError, AuthenticationError
 from dotenv import load_dotenv
 from social_media_fetchers import fetch_social_media_data, format_social_media_data
+from llm_providers import (
+    LLMError, create_client, resolve_provider, resolve_model, generate_ollama_completion,
+)
+from safe_fetch import SOCIAL_DOMAINS, parse_profile_url
+from security_limits import (
+    MAX_COMPLETION_TOKENS, SecurityError, validate_links_list,
+    validate_description, check_prompt_budget,
+)
 
 # Load environment variables from .env file if present
 load_dotenv()
 
 
-def _get_client() -> OpenAI:
-    """Create and return an OpenAI client using the current environment."""
-    return OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+def _get_client(provider="openai") -> OpenAI:
+    """Create a client for the explicitly selected inference destination."""
+    return create_client(provider)
 
 # List of social media domains and their names
-domains = {
-    "facebook.com": "Facebook",
-    "instagram.com": "Instagram",
-    "twitter.com": "Twitter",
-    "x.com": "X",
-    "threads.net": "Threads",
-    "linkedin.com": "LinkedIn",
-    "pinterest.com": "Pinterest",
-    "snapchat.com": "Snapchat",
-    "tiktok.com": "TikTok",
-    "youtube.com": "YouTube",
-    "reddit.com": "Reddit",
-    "tumblr.com": "Tumblr",
-    "github.com": "GitHub",
-    "stackoverflow.com": "Stack Overflow",
-    "medium.com": "Medium",
-    "wordpress.com": "WordPress",
-    "blogger.com": "Blogger",
-    "twitch.tv": "Twitch",
-    "soundcloud.com": "SoundCloud",
-    "spotify.com": "Spotify",
-    "apple.com": "Apple",
-    "amazon.com": "Amazon",
-    "ebay.com": "eBay",
-    "etsy.com": "Etsy",
-    "patreon.com": "Patreon",
-}
+domains = SOCIAL_DOMAINS
 
 # List of parameters for numerical evaluation
 parameters = [
@@ -124,13 +105,10 @@ def validate_social_link(link: str):
     Check if a link is a recognized social network.
     Returns (is_valid, platform_name).
     """
-    if not (link.startswith("http://") or link.startswith("https://")):
-        return (False, None)
-
-    for domain, name in domains.items():
-        if domain in link:
-            return (True, name)
-    return (False, None)
+    try:
+        return True, parse_profile_url(link)[3]
+    except SecurityError:
+        return False, None
 
 def fetch_social_media_content(url: str) -> str:
     """
@@ -143,20 +121,27 @@ def fetch_social_media_content(url: str) -> str:
         return format_social_media_data(data)
     return f"Failed to fetch content from {url}"
 
-def analyze_personality(links_info, personal_description):
+# Keep validation, aggregation and provider cleanup in one visible analysis boundary.
+def analyze_personality(links_info, personal_description, provider=None, model=None):  # pylint: disable=too-many-locals
     """
     Combines data fetched from user-provided links with the personal description,
-    then sends it to the OpenAI API for personality analysis.
+    then sends it to the selected provider for personality analysis.
     Uses platform-specific API integration for better data extraction.
     """
+    validate_description(personal_description)
+    if not isinstance(links_info, list) or any(not isinstance(item, dict) for item in links_info):
+        raise SecurityError("invalid_links", "Provide a list of profile links.")
+    urls = validate_links_list([item.get("url") for item in links_info])
+    profiles = [parse_profile_url(url) for url in urls]
+    # Check credentials/model readiness before any external social-profile fetching.
+    provider = resolve_provider(provider)
+    model = resolve_model(provider, model)
     if not links_info and not personal_description:
         return "No data provided for analysis."
 
     # Fetch and combine content from each social media link using platform-specific fetchers
     combined_text = "Fetched Social Media Data:\n"
-    for link_data in links_info:
-        url = link_data.get('url')
-        platform = link_data.get('platform')
+    for url, _host, _port, platform in profiles:
         combined_text += f"\n---\nPlatform: {platform}\nURL: {url}\n"
 
         # Use the new platform-specific fetcher
@@ -167,10 +152,11 @@ def analyze_personality(links_info, personal_description):
             content = f"Failed to fetch content from {url}"
 
         combined_text += f"Extracted Content:\n{content}\n"
+        check_prompt_budget(combined_text)
 
     combined_text += "\nUser Provided Personal Description:\n" + personal_description + "\n"
 
-    # Build the prompt for OpenAI
+    # Build the prompt for the selected model.
     prompt = f"""
 You are an AI that analyzes a person's social media presence and personal description
 to provide a concise "personality" summary. Here is the provided data:
@@ -189,6 +175,7 @@ evaluation for each of the following parameters with 1 line explanation
 and return it as a table:
 {', '.join(parameters)}
     """
+    check_prompt_budget(prompt)
 
     disclaimer = """
 
@@ -196,17 +183,35 @@ and return it as a table:
 and is a broad characterization rather than a definitive assessment of personality.
 It should not be considered professional mental health advice.
     """
+    messages = [
+        {"role": "system", "content": "You are a helpful AI ..."},
+        {"role": "user", "content": prompt},
+    ]
+    if provider == "ollama":
+        return generate_ollama_completion(model, messages) + disclaimer
+
+    client = _get_client(provider)
     try:
-        response = _get_client().chat.completions.create(
-            model="gpt-4o",  # Replace with your actual model if needed.
-            messages=[
-                {"role": "system", "content": "You are a helpful AI ..."},
-                {"role": "user", "content": prompt},
-            ],
-            # You can adjust max_tokens, temperature, etc. as needed.
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_completion_tokens=MAX_COMPLETION_TOKENS,
         )
-        result = response.choices[0].message.content + disclaimer
-        return result
-    except OpenAIError as e:
-        print(f"OpenAI API Error: {e}")
-        return f"OpenAI API Error: {e}"
+        content = response.choices[0].message.content if response.choices else None
+        if not isinstance(content, str) or not content.strip():
+            raise LLMError("analysis_failed", "The model returned no analysis. Please try again.", 502)
+        return content + disclaimer
+    except AuthenticationError as exc:
+        message = (
+            "OpenAI rejected the configured API key. Update OPENAI_API_KEY on the "
+            "server, restart this app, or choose Ollama."
+        )
+        raise LLMError("openai_auth_error", message, 502) from exc
+    except (OpenAIError, AttributeError, TypeError) as exc:
+        raise LLMError(
+            "analysis_failed",
+            "OpenAI couldn't complete the analysis. Check the service and try again.",
+            502,
+        ) from exc
+    finally:
+        client.close()

@@ -1,15 +1,23 @@
 # Social Media API Integration Guide
 
-This guide explains how to set up and use the platform-specific social media data fetching system that replaces the generic web scraping approach.
+This guide covers the platform API adapters and public HTML scraping fallback.
 
 ## Overview
 
 The new system provides:
 - **Platform-specific API integration** for Twitter, LinkedIn, Instagram, Facebook, and Reddit
-- **Rate limiting** to respect API limits
+- **Work admission limits** and per-fetcher pacing
 - **Fallback mechanisms** when APIs are unavailable
 - **Structured data extraction** for better analysis
 - **OAuth and authentication handling**
+
+## Access and data rules
+
+The app defaults to local-only access. `python app.py` binds to `127.0.0.1` with debug mode off; local requests must use a loopback hostname. For shared access, set a random `APP_ACCESS_TOKEN` of at least 32 characters and list external hostnames in `APP_ALLOWED_HOSTS`, separated by commas without schemes, ports or paths. Restart the app, then use HTTP Basic username `operator` and the token as the password. A configured token also applies to local requests.
+
+External requests require HTTPS in the serving WSGI environment. The app does not trust forwarded headers to establish the peer, hostname or HTTPS scheme; local-only mode rejects `Forwarded` and `X-Forwarded-*` headers. Configure the serving environment for HTTPS. See [Access and limits](README.md#access-and-limits) for the full setup and limits.
+
+Setting `APP_ACCESS_TOKEN` enables shared mode and uses public HTML scraping for Twitter, Facebook, LinkedIn, Instagram and Reddit, bypassing operator logins and previously initialized authenticated clients. The Instagram adapter rejects private profiles before reading posts in local mode. Obtain explicit consent before analyzing sensitive personal information.
 
 ## Supported Platforms
 
@@ -17,7 +25,7 @@ The new system provides:
 - **API**: Twitter API v2 and v1.1
 - **Library**: `tweepy`
 - **Features**: Profile data, follower counts, verification status
-- **Rate Limits**: 300 requests per 15-minute window (v2), 900 requests per 15-minute window (v1.1)
+- **Access**: Configured SDK credentials in local mode; public scraping in shared mode
 
 ### 2. LinkedIn
 - **API**: LinkedIn API (unofficial via `linkedin-api`)
@@ -26,45 +34,43 @@ The new system provides:
 - **Rate Limits**: Varies, requires authentication
 
 ### 3. Instagram
-- **API**: Instagram Graph API (via `instaloader`)
+- **Adapter**: Public profile retrieval via `instaloader`
 - **Library**: `instaloader`
 - **Features**: Profile data, recent posts, follower counts
-- **Rate Limits**: Very strict, 200 requests per hour
+- **Access**: Private profiles are rejected by the local adapter; shared mode uses public HTML scraping
 
 ### 4. Facebook
 - **API**: Facebook Graph API
 - **Library**: `facebook-sdk`
 - **Features**: Profile data, public posts
-- **Rate Limits**: 200 requests per hour per user
+- **Access**: Configured SDK credentials in local mode; public scraping in shared mode
 
 ### 5. Reddit
 - **API**: Reddit API
 - **Library**: `praw`
 - **Features**: User data, recent posts, karma
-- **Rate Limits**: 60 requests per minute
+- **Pacing**: The adapter uses an in-process rate gate; the platform applies its own account quota
 
 ### 6. GitHub
 - **API**: GitHub REST API v3 (public)
-- **Authentication**: Optional `GITHUB_TOKEN` for higher rate limits (5,000 req/hour vs 60 req/hour)
+- **Authentication**: Optional `GITHUB_TOKEN` for the public user-profile endpoint
 - **Features**: Profile data, public repositories, follower/following counts, location, website
-- **Rate Limits**: 60 unauthenticated requests/hour; 5,000 with token
+- **Pacing**: 1 fetch/minute without a token or 83/minute with a token; platform quotas also apply
 
 ### 7. YouTube
-- **API**: YouTube Data API v3
-- **Authentication**: `YOUTUBE_API_KEY` required; falls back to Open Graph scraping
-- **Features**: Channel info, subscriber count, description, country, join date
-- **Rate Limits**: 10,000 units/day (search = 100 units, channels = 1 unit)
+- **Method**: Generic public HTML scraping with profile text selectors
+- **Authentication**: The current adapter does not consume `YOUTUBE_API_KEY`
+- **Features**: Basic name and description when available in the HTML
 
 ### 8. TikTok
-- **API**: None (no official public API)
-- **Method**: Open Graph meta-tag scraping
-- **Features**: Display name, bio, profile picture (best-effort — anti-scraping measures may limit results)
+- **Adapter**: No dedicated API integration in this repository
+- **Method**: Generic public HTML scraping with profile text selectors
+- **Features**: Basic name and description when available in the HTML; anti-scraping measures may prevent retrieval
 
 ### 9. Tumblr
-- **API**: Tumblr API v2 (public read-only endpoints)
-- **Authentication**: `TUMBLR_API_KEY` required; falls back to Open Graph scraping
-- **Features**: Blog title, description, recent posts, follower count, avatar
-- **Rate Limits**: 1,000 requests/hour (unauthenticated), 5,000/hour (with key)
+- **Method**: Generic public HTML scraping with profile text selectors
+- **Authentication**: The current adapter does not consume `TUMBLR_API_KEY`
+- **Features**: Basic name and description when available in the HTML
 
 ### 10. Generic Platforms
 - **Method**: Web scraping with BeautifulSoup
@@ -80,10 +86,7 @@ pip install -r requirements.txt
 
 2. Set up your API credentials (see Configuration section below)
 
-3. For Selenium-based fallback (optional):
-```bash
-pip install webdriver-manager
-```
+The current HTML fallback does not use Selenium or run page JavaScript.
 
 ## Configuration
 
@@ -123,11 +126,9 @@ REDDIT_USER_AGENT=SocialNetworkAnalyzer/1.0
 # GitHub API (optional – raises rate limit from 60 to 5,000 requests/hour)
 GITHUB_TOKEN=your_github_personal_access_token_here
 
-# YouTube Data API v3
-YOUTUBE_API_KEY=your_youtube_api_key_here
-
-# Tumblr API
-TUMBLR_API_KEY=your_tumblr_consumer_key_here
+# Access defaults: leave blank for local-only use
+APP_ACCESS_TOKEN=
+APP_ALLOWED_HOSTS=
 ```
 
 ### Platform-Specific Setup
@@ -145,15 +146,15 @@ TUMBLR_API_KEY=your_tumblr_consumer_key_here
 
 **Note**: LinkedIn's official API is very restrictive. The `linkedin-api` library uses web scraping with authentication.
 
-1. Use your LinkedIn email and password
-2. **Security Warning**: This method is not recommended for production use
-3. Consider using LinkedIn's official API for business applications
+1. Optional local login uses your LinkedIn email and password.
+2. Shared mode skips this login and uses public HTML scraping.
+3. This adapter uses the unofficial `linkedin-api` library.
 
 #### Instagram API Setup
 
-1. The `instaloader` library can work with public profiles without authentication
-2. For private profiles, provide your Instagram credentials
-3. Consider using Instagram's Graph API for business accounts
+1. Use public Instagram profiles; `instaloader` can fetch them without authentication.
+2. The adapter rejects private profiles before reading posts, even with local credentials.
+3. Shared mode bypasses operator login and uses public HTML scraping.
 
 #### Facebook API Setup
 
@@ -174,27 +175,20 @@ TUMBLR_API_KEY=your_tumblr_consumer_key_here
 
 1. A Personal Access Token is **optional** but strongly recommended.
 2. Generate one at [GitHub Settings → Tokens](https://github.com/settings/tokens).
-3. Without a token the public API allows 60 requests/hour (unauthenticated); with a token you get up to 5,000 requests/hour.
+3. The adapter paces requests at 1/minute without a token or 83/minute with one. Check your GitHub account's current API quota separately.
 4. No special permissions are required to read public profiles.
 
-#### YouTube Data API v3 Setup
+#### YouTube Setup
 
-1. Go to [Google Developers Console](https://console.developers.google.com/).
-2. Create (or select) a project and enable the **YouTube Data API v3**.
-3. Create an **API key** credential.
-4. Without the key, the fetcher falls back to Open Graph meta-tag scraping.
+Use a supported public YouTube URL. The current implementation uses generic HTML scraping and does not read `YOUTUBE_API_KEY`.
 
 #### TikTok Setup
 
-TikTok provides no publicly accessible API for third-party profile data.  
-The fetcher uses Open Graph meta-tag scraping, which is best-effort and may be
-affected by TikTok's anti-scraping measures.
+The fetcher uses generic HTML scraping. TikTok's page rendering and anti-scraping measures may prevent retrieval.
 
-#### Tumblr API Setup
+#### Tumblr Setup
 
-1. Register an application at [Tumblr OAuth Apps](https://www.tumblr.com/oauth/apps).
-2. The **Consumer Key** shown on that page is your `TUMBLR_API_KEY`.
-3. Without the key, the fetcher falls back to Open Graph meta-tag scraping.
+Use a supported public Tumblr URL. The current implementation uses generic HTML scraping and does not read `TUMBLR_API_KEY`.
 
 ## Usage
 
@@ -233,7 +227,7 @@ print(f"Supported platforms: {platforms}")
 
 ### Integration with Existing Code
 
-The new system is backward compatible. Your existing code will automatically use the new platform-specific fetchers:
+Existing callers can use the same entry points. They must supply supported profile URLs and stay within the input budgets; rejected destinations and private Instagram profiles raise a `SecurityError`:
 
 ```python
 from analyze import analyze_personality
@@ -264,26 +258,24 @@ class SocialMediaData:
     raw_data: Dict             # Raw API response
 ```
 
-## Rate Limiting
+## Request and download limits
 
-The system includes built-in rate limiting:
+`/analyze` and `/api/ollama/models` share a rolling allowance of **30 work requests per minute** and **2 concurrent requests**. Excess work returns HTTP 429 with `Retry-After: 60`. These counters cover one process; multiple workers require shared admission control. Per-fetcher pacing is separate and does not guarantee compliance with a platform's account quota or count every SDK request.
 
-- **Twitter**: 60 requests per minute
-- **LinkedIn**: 60 requests per minute
-- **Instagram**: 60 requests per minute
-- **Facebook**: 60 requests per minute
-- **Reddit**: 60 requests per minute
+The web API accepts at most **5 profile URLs**, **2,048 characters per URL**, **10,000 description characters** and **32 KiB per request body**. Analysis rejects prompts over **50,000 characters** and requests at most **4,096 completion tokens** from either inference provider.
 
-Rate limits are automatically enforced, and the system will wait when limits are reached.
+The shared HTTP transport for HTML scraping and GitHub reads:
+
+- Accepts supported social domains on standard HTTP(S) ports and requires all DNS answers to be public Internet addresses.
+- Connects to a validated IP, retains the original HTTPS hostname for certificate verification, and validates each redirect destination.
+- Permits at most **3 redirects** within a **15-second retrieval budget** per fetch.
+- Rejects encoded or decoded bodies over **1 MiB**, including oversized gzip content.
+
+These HTTP download limits do not extend to platform SDK internals, inference response bodies or the duration of a complete analysis. Operator-configured Ollama endpoints use a separate transport so local inference remains available.
 
 ## Error Handling
 
-The system includes comprehensive error handling:
-
-1. **API Errors**: If an API call fails, the system falls back to web scraping
-2. **Authentication Errors**: If credentials are invalid, the system uses fallback methods
-3. **Rate Limit Errors**: The system automatically waits and retries
-4. **Network Errors**: Retry logic with exponential backoff
+Platform adapters may fall back to public HTML scraping after an API failure. Security rejections, including unsafe destinations, oversized downloads and private Instagram profiles, stop the request. The web API returns structured error codes; callers should correct rejected inputs or wait after HTTP 429 before retrying. SDK retry behavior depends on the adapter.
 
 ## Fallback Mechanisms
 
@@ -295,11 +287,7 @@ When APIs are unavailable, the system falls back to:
 
 ## Security Considerations
 
-1. **API Keys**: Never commit API keys to version control
-2. **Environment Variables**: Use environment variables for sensitive data
-3. **Rate Limiting**: Respect platform rate limits
-4. **Data Privacy**: Only fetch publicly available data
-5. **Authentication**: Use secure authentication methods
+Keep API credentials and `APP_ACCESS_TOKEN` in the server environment or `.env`, out of Git and browser code. Fetch public profiles with the required consent and respect each platform's terms and quotas. Shared mode uses one operator credential; it does not provide separate user accounts or tenant isolation. See [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## Troubleshooting
 
@@ -307,7 +295,7 @@ When APIs are unavailable, the system falls back to:
 
 1. **Import Errors**: Make sure all dependencies are installed
 2. **Authentication Errors**: Check your API credentials
-3. **Rate Limit Errors**: The system will automatically handle these
+3. **Rate Limit Errors**: Wait for the indicated retry interval; check platform quotas separately
 4. **Network Errors**: Check your internet connection
 
 ### Debug Mode
@@ -331,8 +319,8 @@ python -m pytest test_analyze.py
 
 1. **Caching**: Consider implementing caching for frequently accessed profiles
 2. **Async Processing**: For multiple profiles, consider async processing
-3. **Connection Pooling**: The system uses connection pooling for HTTP requests
-4. **Memory Management**: Large responses are automatically truncated
+3. **Concurrency**: Keep deployment worker counts consistent with the shared work budget
+4. **Memory Management**: HTML/GitHub HTTP reads reject oversized bodies; formatted post excerpts have separate length limits
 
 ## Future Enhancements
 
@@ -353,4 +341,4 @@ For issues and questions:
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details. 
+This project is licensed under the MIT License. See the LICENSE file for details.
